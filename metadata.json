@@ -1,0 +1,7 @@
+{
+  "name": "Carreto Plus - Sistema de Recompensas",
+  "description": "Una aplicación de tableta para que los operadores de estaciones de gasolina gestionen el programa de lealtad Carreto Plus. Permite registrar clientes, acumular y canjear puntos, y obtener sugerencias de venta impulsadas por IA.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
