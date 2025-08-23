@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type { Customer, View, Notification } from './types';
-import { findCustomerByPhone, registerCustomer as apiRegisterCustomer } from './services/customerService';
+import type { Customer, View, Notification } from '@/types'; // CORRECCIÓN
+import { findCustomerByPhone, registerCustomer } from '@/services/customerService'; // CORRECCIÓN
 
-import Header from './components/Header';
-import HomeScreen from './components/screens/HomeScreen';
-import RegisterScreen from './components/screens/RegisterScreen';
-import CustomerScreen from './components/screens/CustomerScreen';
-import NotificationBanner from './components/NotificationBanner';
+import Header from '@/components/Header'; // CORRECCIÓN
+import HomeScreen from '@/components/screens/HomeScreen'; // CORRECCIÓN
+import RegisterScreen from '@/components/screens/RegisterScreen'; // CORRECCIÓN
+import CustomerScreen from '@/components/screens/CustomerScreen'; // CORRECCIÓN
+import NotificationBanner from '@/components/NotificationBanner'; // CORRECCIÓN
 
 export default function App(): React.ReactNode {
   const [view, setView] = useState<View>('home');
@@ -20,9 +20,9 @@ export default function App(): React.ReactNode {
     }
   }, [notification]);
 
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotification({ message, type });
-  };
+  }, []);
 
   const handleSearch = useCallback(async (phone: string) => {
     try {
@@ -38,30 +38,30 @@ export default function App(): React.ReactNode {
       const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido';
       showNotification(errorMessage, 'error');
     }
-  }, []);
+  }, [showNotification]);
 
   const handleStartRegistration = useCallback(() => {
     setView('register');
   }, []);
-  
+
   const handleBackToHome = useCallback(() => {
     setView('home');
     setActiveCustomer(null);
   }, []);
 
   const handleRegister = useCallback(async (name: string, phone: string): Promise<boolean> => {
-      try {
-          const newCustomer = await apiRegisterCustomer(name, phone);
-          setView('home');
-          showNotification(`¡Cliente ${newCustomer.name} registrado con éxito!`, 'success');
-          return true;
-      } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Error al registrar';
-          showNotification(errorMessage, 'error');
-          return false;
-      }
-  }, []);
-  
+    try {
+      await registerCustomer(name, phone);
+      setView('home');
+      showNotification(`¡Cliente ${name} registrado con éxito!`, 'success');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error al registrar';
+      showNotification(errorMessage, 'error');
+      return false;
+    }
+  }, [showNotification]);
+
   const renderView = () => {
     switch (view) {
       case 'customer':
