@@ -28,7 +28,7 @@ export const getSalesSuggestion = async (customer: Customer, purchaseAmount: num
     Ejemplos de sugerencias: ofrecer un lavado de auto, un café, una promoción de aceite, o recordarle los beneficios de sus puntos.
     
     Ejemplo de formato de respuesta:
-    "¡Con esta carga acumuló más puntos! ¿No le gustaría un café para el camino?"
+    "¡Con esta carga acumuló más puntos! Vuelva pronto!"
   `;
 
   try {
