@@ -1,15 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react'; // Añadido useEffect
-// Asume que tus tipos y servicios existen y funcionan como antes
-// import type { Customer, CartItem } from '../../types';
-// import { findCustomerByPhone, addPoints } from '../../services/customerService';
-// Asume que tienes servicios definidos - Asegúrate que las rutas sean correctas
-import { searchProducts } from '../../services/productService'; 
-import { getGasPrices } from '../../services/adminService'; 
-import { addPoints } from '../../services/customerService'; // Asumiendo que existe
-// import { saveSaleRecord } from '../services/salesService'; // Asumiendo que tendrás un servicio para ventas
-// import { processPaymentWithBanorte } from '../services/banorteService'; // Asumiendo SDK de Banorte
+import React, { useState, useMemo, useEffect } from 'react';
+// Usando rutas relativas como pediste
+import { searchProducts } from '../../services/productService';
+import { getGasPrices } from '../../services/adminService';
+import { addPoints, saveSaleRecord } from '../../services/customerService';
+// import { processPaymentWithBanorte } from '../../services/banorteService'; 
 
-// --- Iconos (sin cambios) ---
+// --- Iconos ---
 const UserIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" /></svg>;
 const CameraIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M12 10.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z" /><path fillRule="evenodd" d="M2.25 5.625A3.375 3.375 0 0 1 5.625 2.25h12.75c1.86 0 3.375 1.515 3.375 3.375v12.75a3.375 3.375 0 0 1-3.375 3.375H5.625a3.375 3.375 0 0 1-3.375-3.375V5.625Zm3.375-.75a1.875 1.875 0 0 0-1.875 1.875v12.75c0 1.036.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V5.625c0-1.036-.84-1.875-1.875-1.875H5.625Z" clipRule="evenodd" /></svg>;
 const GasPumpIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path fillRule="evenodd" d="M8.25 3.75a.75.75 0 0 1 .75.75v.75h3V4.5a.75.75 0 0 1 1.5 0v.75h.75a2.25 2.25 0 0 1 2.25 2.25v6.75a2.25 2.25 0 0 1-2.25 2.25h-.75v.75a.75.75 0 0 1-1.5 0V15h-3v.75a.75.75 0 0 1-1.5 0V15h-.75a2.25 2.25 0 0 1-2.25-2.25V7.5a2.25 2.25 0 0 1 2.25-2.25h.75v-.75a.75.75 0 0 1 .75-.75Zm0 1.5v.75H6a.75.75 0 0 0-.75.75v6.75c0 .414.336.75.75.75h.75v-.75a.75.75 0 0 1 1.5 0v.75h3v-.75a.75.75 0 0 1 1.5 0v.75h.75a.75.75 0 0 0 .75-.75V7.5a.75.75 0 0 0-.75-.75h-.75v-.75a.75.75 0 0 1-1.5 0v.75h-3v-.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" /></svg>;
@@ -22,142 +18,139 @@ const TicketModal = ({ receipt, onClose }) => {
         alert('Simulando impresión del ticket...');
     };
     
+    // Formatea la fecha para el ticket
+    const formattedDate = receipt.date instanceof Date 
+        ? receipt.date.toLocaleString('es-MX', { 
+            day: '2-digit', month: '2-digit', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit', second: '2-digit' 
+          })
+        : 'Fecha inválida';
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm font-mono text-gray-800 dark:text-gray-200">
-                <div className="p-6 text-center border-b border-dashed border-gray-300 dark:border-gray-600">
-                    <CarretoPlusIcon className="w-12 h-12 mx-auto text-emerald-500" />
-                    <h2 className="text-2xl font-bold mt-2">Carreto Plus</h2>
-                    <p className="text-sm text-gray-500">Sistema de Recompensas</p>
-                    <p className="text-xs mt-4">{receipt.date.toLocaleString('es-MX')}</p>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in-fast">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm font-mono text-gray-800 dark:text-gray-200 text-sm"> {/* Ajustado tamaño de fuente base */}
+                <div className="p-4 text-center border-b border-dashed border-gray-300 dark:border-gray-600"> {/* Reducido padding */}
+                    <CarretoPlusIcon className="w-10 h-10 mx-auto text-emerald-500" /> {/* Reducido tamaño ícono */}
+                    <h2 className="text-xl font-bold mt-1">Carreto Plus</h2> {/* Reducido tamaño y margen */}
+                    <p className="text-xs text-gray-500">Sistema de Recompensas</p>
+                    <p className="text-xs mt-2">{formattedDate}</p> {/* Usando fecha formateada */}
                     <p className="text-xs">Folio: {receipt.folio}</p>
                 </div>
-                <div className="p-6 border-b border-dashed border-gray-300 dark:border-gray-600">
-                     <p className="text-sm">Cliente: <span className="font-semibold">{receipt.customerName}</span></p>
+                <div className="p-4 border-b border-dashed border-gray-300 dark:border-gray-600">
+                     <p className="text-xs">Cliente: <span className="font-semibold">{receipt.customerName}</span></p> {/* Reducido tamaño fuente */}
                 </div>
-                <div className="p-6 text-sm space-y-2">
-                    <div className="flex justify-between font-bold">
+                <div className="p-4 max-h-48 overflow-y-auto space-y-1"> {/* Reducido padding y añadido scroll */}
+                    <div className="flex justify-between font-bold text-xs mb-1"> {/* Reducido tamaño y margen */}
                         <span>Producto</span>
                         <span>Importe</span>
                     </div>
                     {receipt.cart.map(item => (
-                        <div key={item.id} className="flex justify-between">
+                        <div key={item.id} className="flex justify-between text-xs"> {/* Reducido tamaño fuente */}
                             <span className="truncate pr-2">{item.name}</span>
                             <span>${item.price.toFixed(2)}</span>
                         </div>
                     ))}
                 </div>
-                <div className="p-6 border-t border-dashed border-gray-300 dark:border-gray-600 space-y-2">
-                    <div className="flex justify-between font-semibold">
+                <div className="p-4 border-t border-dashed border-gray-300 dark:border-gray-600 space-y-1"> {/* Reducido padding */}
+                    <div className="flex justify-between font-semibold text-xs"> {/* Reducido tamaño fuente */}
                         <span>Subtotal:</span>
                         <span>${receipt.subtotal.toFixed(2)}</span>
                     </div>
                      {receipt.discount > 0 && (
-                        <div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400">
+                        <div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400 text-xs"> {/* Reducido tamaño fuente */}
                             <span>Descuento ({receipt.redeemedPoints} Pts):</span>
                             <span>-${receipt.discount.toFixed(2)}</span>
                         </div>
                     )}
-                    <div className="flex justify-between text-2xl font-bold border-t border-gray-300 dark:border-gray-600 pt-2 mt-2">
+                    <div className="flex justify-between text-lg font-bold border-t border-gray-300 dark:border-gray-600 pt-1 mt-1"> {/* Reducido tamaño, padding y margen */}
                         <span>TOTAL:</span>
                         <span>${receipt.total.toFixed(2)}</span>
                     </div>
                 </div>
-                <div className="p-6 border-t border-dashed border-gray-300 dark:border-gray-600 text-sm space-y-2">
-                     <h3 className="font-bold text-center mb-2">Resumen de Puntos</h3>
-                     <div className="flex justify-between"><span>Saldo Anterior:</span><span>{receipt.points.before.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Puntos Canjeados:</span><span>-{receipt.points.redeemed.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Puntos Ganados:</span><span>+{receipt.points.earned.toLocaleString()}</span></div>
-                     <div className="flex justify-between font-bold text-base border-t border-gray-300 dark:border-gray-600 mt-2 pt-2"><span>Nuevo Saldo:</span><span>{receipt.points.after.toLocaleString()}</span></div>
-                </div>
-                <div className="p-4 flex gap-4">
-                    <button onClick={handlePrint} className="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-800 font-semibold py-3 rounded-lg hover:bg-gray-300 transition-colors">
-                        <PrinterIcon className="w-5 h-5" /> Imprimir
+                 {/* Muestra resumen de puntos solo si hubo cliente */}
+                 {receipt.customerId && (
+                    <div className="p-4 border-t border-dashed border-gray-300 dark:border-gray-600 text-xs space-y-1"> {/* Reducido tamaño fuente */}
+                         <h3 className="font-bold text-center mb-1">Resumen de Puntos</h3> {/* Reducido margen */}
+                         <div className="flex justify-between"><span>Saldo Anterior:</span><span>{receipt.points.before.toLocaleString()}</span></div>
+                         <div className="flex justify-between"><span>Puntos Canjeados:</span><span>-{receipt.points.redeemed.toLocaleString()}</span></div>
+                         <div className="flex justify-between"><span>Puntos Ganados:</span><span>+{receipt.points.earned.toLocaleString()}</span></div>
+                         <div className="flex justify-between font-bold text-sm border-t border-gray-300 dark:border-gray-600 mt-1 pt-1"><span>Nuevo Saldo:</span><span>{receipt.points.after.toLocaleString()}</span></div> {/* Reducido tamaño, margen y padding */}
+                    </div>
+                 )}
+                <div className="p-3 flex gap-3"> {/* Reducido padding y gap */}
+                    <button onClick={handlePrint} className="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-800 font-semibold py-2 rounded-lg hover:bg-gray-300 transition-colors text-sm"> {/* Reducido padding y tamaño fuente */}
+                        <PrinterIcon className="w-4 h-4" /> Imprimir
                     </button>
-                    <button onClick={onClose} className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                    <button onClick={onClose} className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"> {/* Reducido padding y tamaño fuente */}
                         Nueva Venta
                     </button>
                 </div>
             </div>
+            {/* Estilo para animación fade-in (opcional, añadir a tu CSS global si no lo tienes) */}
+            <style>{`
+                .animate-fade-in-fast { animation: fadeIn 0.2s ease-out forwards; }
+                @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+            `}</style>
         </div>
     );
 };
 
 
 // Componente principal del Punto de Venta
-export default function POSScreen({ customer, onBack, showNotification }) { // Añadido showNotification
-  // ESTADO DE LA VENTA ACTUAL
-  const [cart, setCart] = useState([]); 
-  const [internalCustomer, setInternalCustomer] = useState(customer); 
+export default function POSScreen({ customer, onBack, showNotification }) {
+  // --- Estados ---
+  const [cart, setCart] = useState([]);
+  const [internalCustomer, setInternalCustomer] = useState(customer);
   const [redeemAmountInput, setRedeemAmountInput] = useState('');
-  const [redeemedPoints, setRedeemedPoints] = useState(0); 
-
-  // ESTADO DEL PANEL IZQUIERDO
-  const [activeTab, setActiveTab] = useState('combustible'); 
-  const [activeFuelType, setActiveFuelType] = useState('magna'); 
+  const [redeemedPoints, setRedeemedPoints] = useState(0);
+  const [activeTab, setActiveTab] = useState('combustible');
+  const [activeFuelType, setActiveFuelType] = useState('magna');
   const [gasAmount, setGasAmount] = useState('');
-  const [productSearch, setProductSearch] = useState(''); 
+  const [productSearch, setProductSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-
-  // ESTADO GENERAL
   const [isLoading, setIsLoading] = useState(false);
-  const [saleReceipt, setSaleReceipt] = useState(null); 
-
-  // NUEVO: Estado para precios de gasolina cargados
+  const [saleReceipt, setSaleReceipt] = useState(null);
   const [gasPrices, setGasPrices] = useState({ magnaPrice: 0, premiumPrice: 0, dieselPrice: 0 });
-  const [pricesLoading, setPricesLoading] = useState(true); // Estado de carga para precios
+  const [pricesLoading, setPricesLoading] = useState(true);
 
   // --- Carga de Precios de Gasolina ---
   useEffect(() => {
-    // Define la función asíncrona dentro del useEffect
     const fetchGasPrices = async () => {
-        setPricesLoading(true); // Indica que la carga ha comenzado
+        setPricesLoading(true); 
         try {
-            // LLAMA A LA FUNCIÓN REAL para obtener precios desde adminService
             const fetchedPrices = await getGasPrices(); 
             if (fetchedPrices) {
-                // Actualiza el estado local con los precios obtenidos de Firebase
                 setGasPrices({
                     magnaPrice: fetchedPrices.magnaPrice || 0,
                     premiumPrice: fetchedPrices.premiumPrice || 0,
                     dieselPrice: fetchedPrices.dieselPrice || 0,
                 });
             } else {
-                 // Si getGasPrices devuelve null (documento no encontrado), usa showNotification
                  showNotification('Error: No se encontró el documento de configuración de precios.', 'error');
-                 // Mantiene los precios en 0 o podrías establecer unos por defecto
                  setGasPrices({ magnaPrice: 0, premiumPrice: 0, dieselPrice: 0 });
             }
         } catch (error) {
-            // Muestra error si la llamada a getGasPrices falla
             showNotification(`Error al cargar precios de gasolina: ${error.message}`, 'error');
-             // Mantiene los precios en 0 o podrías establecer unos por defecto
             setGasPrices({ magnaPrice: 0, premiumPrice: 0, dieselPrice: 0 });
         } finally {
-            setPricesLoading(false); // Indica que la carga ha terminado (éxito o fallo)
+            setPricesLoading(false); 
         }
     };
-    fetchGasPrices(); // Ejecuta la función de carga
-  }, [showNotification]); // El array de dependencias incluye showNotification
+    fetchGasPrices(); 
+  }, [showNotification]); 
 
-  // Cálculo de litros ahora usa los precios del estado gasPrices
+  // --- Cálculos ---
   const gasLiters = useMemo(() => {
-    const amount = parseFloat(gasAmount);
-    // Accede a los precios usando la clave correcta del estado gasPrices
-    // Ejemplo: si activeFuelType es 'magna', usa gasPrices['magnaPrice']
-    const price = gasPrices[`${activeFuelType}Price`] || 1; // Usa || 1 para evitar división por cero si el precio es 0
-    // Devuelve 0 si el monto no es válido o el precio es 0
-    return isNaN(amount) || price === 0 ? 0 : amount / price; 
-  }, [gasAmount, activeFuelType, gasPrices]);
-
-
-  // CÁLCULOS DEL TICKET (PANEL DERECHO)
+     const amount = parseFloat(gasAmount);
+     const price = gasPrices[`${activeFuelType}Price`] || 1;
+     return isNaN(amount) || price === 0 ? 0 : amount / price;
+   }, [gasAmount, activeFuelType, gasPrices]);
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.price, 0), [cart]);
-  const discount = useMemo(() => redeemedPoints * 0.50, [redeemedPoints]); // Regla: 1 punto = $0.50
+  const discount = useMemo(() => redeemedPoints * 0.50, [redeemedPoints]);
   const total = subtotal - discount;
 
-  // --- LÓGICA DE LA APLICACIÓN ---
-  
+  // --- Lógica de la Aplicación ---
+
   const resetCart = () => {
       setCart([]);
       setRedeemedPoints(0);
@@ -171,7 +164,7 @@ export default function POSScreen({ customer, onBack, showNotification }) { // A
     setSaleReceipt(null);
     resetCart();
   };
-  
+
   const handleAddGas = () => {
     const amount = parseFloat(gasAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -181,17 +174,15 @@ export default function POSScreen({ customer, onBack, showNotification }) { // A
     const fuelName = activeFuelType.charAt(0).toUpperCase() + activeFuelType.slice(1);
     const newItem = {
       id: `gas-${Date.now()}`,
-      // Ahora el nombre incluye los litros calculados con el precio real
-      name: `Gasolina ${fuelName} (${gasLiters.toFixed(2)} Lts)`, 
+      name: `Gasolina ${fuelName} (${gasLiters.toFixed(2)} Lts)`,
       price: amount,
       type: 'combustible',
     };
     setCart(prev => [...prev, newItem]);
-    setGasAmount(''); // Limpia el campo de monto
+    setGasAmount('');
   };
 
-  const handleAddProduct = async (product) => { // Cambiado a async si searchProducts es async
-    // Aquí podrías querer refrescar el producto desde la BD si los precios cambian mucho
+  const handleAddProduct = (product) => {
     setCart(prev => [...prev, { ...product, id: `prod-${product.id}-${Date.now()}`, type: 'producto' }]);
   };
   
@@ -209,91 +200,119 @@ export default function POSScreen({ customer, onBack, showNotification }) { // A
         showNotification('El cliente no tiene suficientes puntos.', 'error');
         return;
     }
-    const maxDiscount = subtotal;
-    // Calcula el descuento potencial y compara con el subtotal
-    if ((pointsToRedeem * 0.50) > maxDiscount) { 
-        showNotification('El descuento por puntos no puede ser mayor al subtotal de la venta.', 'error');
-        return;
+    const maxDiscountValue = subtotal; 
+    if ((pointsToRedeem * 0.50) > maxDiscountValue) { 
+        const maxPointsToRedeem = Math.floor(maxDiscountValue / 0.50);
+        showNotification(`El descuento excede el total. Máximo a canjear: ${maxPointsToRedeem} puntos.`, 'error');
+        setRedeemAmountInput(maxPointsToRedeem.toString()); 
+        setRedeemedPoints(maxPointsToRedeem); 
+        return; 
     }
-    setRedeemedPoints(pointsToRedeem); // Actualiza los puntos a canjear
+    setRedeemedPoints(pointsToRedeem);
     showNotification(`${pointsToRedeem} puntos aplicados correctamente.`, 'success');
   };
 
+  // --- FUNCIÓN DE PAGO CON DEPURACIÓN ---
   const handleProcessPayment = async () => {
+    if (total < 0 || cart.length === 0) {
+      showNotification('Carrito vacío o total inválido.', 'error');
+      return;
+    }
+
     setIsLoading(true);
+    console.log("[handleProcessPayment] PASO 1: Iniciando proceso de pago."); // <- PUNTO DE CONTROL
+
     try {
-        // 1. Simulación de pago con Banorte
+        // Simulación de pago (ya que Banorte no está integrado)
         const paymentSuccess = window.confirm(`Simular pago con Banorte por $${total.toFixed(2)}?`);
 
         if (paymentSuccess) {
+            console.log("[handleProcessPayment] PASO 2: Simulación de pago EXITOSA."); // <- PUNTO DE CONTROL
             let pointsSummary = { before: 0, redeemed: 0, earned: 0, after: 0 };
-            
-            // 2. Cálculo y actualización de puntos (si hay cliente)
+            let updatedCustomerData = internalCustomer;
+
+            // --- Actualización de Puntos (si hay cliente) ---
             if (internalCustomer) {
-                const pointsEarned = Math.floor(total / 10); // Calcula puntos ganados sobre el total final
-                const currentPoints = internalCustomer.points; // Puntos antes de la transacción
-                const newPoints = currentPoints - redeemedPoints + pointsEarned; // Calcula nuevo saldo
+                const pointsEarned = Math.floor(total / 10); 
+                const currentPoints = internalCustomer.points;
+                const newPoints = currentPoints - redeemedPoints + pointsEarned;
                 
-                pointsSummary = { // Guarda el resumen para el ticket
+                pointsSummary = { 
                     before: currentPoints,
                     redeemed: redeemedPoints,
                     earned: pointsEarned,
                     after: newPoints
                 };
 
-                // Actualización optimista de la UI (muestra el nuevo saldo al instante)
-                setInternalCustomer(prev => ({ ...prev, points: newPoints }));
-                
-                // LLAMADA REAL AL SERVICIO para actualizar puntos en Firebase
-                // await updateCustomerPoints(internalCustomer.phone, -redeemedPoints + pointsEarned);
-                console.log(`(Simulado) Actualizando puntos para ${internalCustomer.phone}: ${-redeemedPoints + pointsEarned}`); 
+                try {
+                     console.log("[handleProcessPayment] PASO 3: Intentando actualizar puntos en Firebase..."); // <- PUNTO DE CONTROL
+                     // Llamada real al servicio
+                     const result = await addPoints(internalCustomer.phone, total, redeemedPoints); 
+                     updatedCustomerData = result.customer; 
+                     setInternalCustomer(updatedCustomerData); // Actualiza UI
+                     console.log("[handleProcessPayment] PASO 4: Puntos actualizados en Firebase y UI."); // <- PUNTO DE CONTROL
+                 } catch (pointsError) {
+                     // Si falla la actualización de puntos, lo registramos pero continuamos con el guardado de la venta
+                     console.error("ERROR EN ACTUALIZACIÓN DE PUNTOS:", pointsError);
+                     showNotification(`Error al actualizar puntos: ${pointsError.message}. La venta se guardará de todos modos.`, 'error');
+                 }
+            } else {
+                console.log("[handleProcessPayment] PASO 3 y 4 omitidos: No hay cliente seleccionado.");
             }
             
-            // 3. Construir el objeto del ticket con todos los datos
+            // --- Construcción del Ticket ---
             const receiptData = {
-                folio: `SALE-${Date.now()}`,
-                date: new Date(),
+                folio: `SALE-${Date.now().toString().slice(-6)}`,
+                date: new Date(), 
                 customerName: internalCustomer ? internalCustomer.name : 'Público General',
-                cart: [...cart], // Copia del carrito actual
+                customerId: internalCustomer ? internalCustomer.id : null, 
+                cart: [...cart], 
                 subtotal,
                 discount,
                 redeemedPoints,
                 total,
-                points: pointsSummary, // Incluye el resumen de puntos
+                points: pointsSummary, 
             };
+            console.log("[handleProcessPayment] PASO 5: Objeto del ticket construido. Listo para guardar:", receiptData); // <- PUNTO DE CONTROL
 
-            // 4. LLAMADA REAL AL SERVICIO para guardar la venta en Firebase
-            // await saveSaleRecord(receiptData);
-            console.log('Venta registrada (simulado):', receiptData); 
-            
-            setSaleReceipt(receiptData); // Muestra el modal del ticket
-            showNotification('Venta completada y registrada.', 'success');
-            // El carrito se limpia cuando se cierra el ticket (handleCloseTicket)
+            // --- Guardado de Venta en Firebase ---
+            try {
+                console.log("[handleProcessPayment] PASO 6: Intentando guardar venta en Firestore..."); // <- PUNTO DE CONTROL
+                const saleId = await saveSaleRecord(receiptData); 
+                console.log("[handleProcessPayment] PASO 7: Venta guardada con ID:", saleId); // <- PUNTO DE CONTROL
+                showNotification(`Venta ${saleId.slice(-6)} registrada con éxito.`, 'success');
+                setSaleReceipt(receiptData); // Muestra el modal del ticket
+            } catch (saveError) {
+                // Este es el error que probablemente tuviste
+                console.error("ERROR CRÍTICO AL GUARDAR VENTA:", saveError);
+                showNotification(`Error Crítico: No se pudo guardar la venta - ${saveError.message}. REVISAR MANUALMENTE.`, 'error');
+            }
 
         } else {
-            showNotification('Pago cancelado o fallido.', 'info');
+            showNotification('Pago cancelado.', 'info');
+            console.log("[handleProcessPayment] Pago cancelado por el usuario.");
         }
-    } catch (error) {
-        showNotification(`Ocurrió un error durante el proceso de pago: ${error.message}`, 'error');
-        console.error(error);
+    } catch (error) { 
+        console.error("ERROR INESPERADO EN handleProcessPayment:", error);
+        showNotification(`Error en el proceso: ${error.message}`, 'error');
     } finally {
-        setIsLoading(false); // Termina el estado de carga
+        setIsLoading(false); 
+        console.log("[handleProcessPayment] PASO FINAL: Proceso terminado, isLoading: false.");
     }
   };
   
-  // Búsqueda de productos ahora llama al servicio
+  // --- Búsqueda de productos ---
   const handleSearch = async () => {
       if (!productSearch || productSearch.trim() === '') { 
           setSearchResults([]); 
           return; 
       }
       try {
-        // LLAMADA REAL al servicio searchProducts
         const results = await searchProducts(productSearch.trim()); 
-        setSearchResults(results || []); // Actualiza los resultados
+        setSearchResults(results || []); 
       } catch (error) {
         showNotification(`Error al buscar productos: ${error.message}`, 'error');
-        setSearchResults([]); // Limpia resultados en caso de error
+        setSearchResults([]); 
       }
   };
 
@@ -516,4 +535,3 @@ export default function POSScreen({ customer, onBack, showNotification }) { // A
     </>
   );
 }
-
