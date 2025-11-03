@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -19,6 +20,10 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const analytics = getAnalytics(app); // Está bien mantener analytics
+
+// --- CORRECCIÓN AQUÍ ---
+// Inicializa y exporta los servicios que tu App.tsx necesita
 export const db = getFirestore(app);
+export const auth = getAuth(app); // <-- Esta es la línea que faltaba
 

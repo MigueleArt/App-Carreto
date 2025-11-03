@@ -1,27 +1,42 @@
 import React, { useState, useCallback, useEffect } from 'react';
-// Asume que tus tipos y servicios están definidos
-// import type { Customer, View, Notification } from './types';
-import { findCustomerByPhone, registerCustomer as apiRegisterCustomer } from './services/customerService'; // Asegúrate que la ruta sea correcta
-// Asume que tienes servicios para admin también
-// import { getGasPrices, updateGasPrices, getProducts, addProduct, updateProduct } from './services/adminService'; // Asegúrate que la ruta sea correcta
 
+// --- Importaciones de Firebase ---
+import { auth, db } from './firebaseConfig';
+import { 
+  signInWithEmailAndPassword, 
+  onAuthStateChanged, 
+  User, 
+  signOut 
+} from 'firebase/auth';
+import { doc, getDoc } from "firebase/firestore";
+
+// --- Servicios y Componentes ---
+import { findCustomerByPhone, registerCustomer as apiRegisterCustomer } from './services/customerService';
 import Header from './components/Header';
 import HomeScreen from './components/screens/HomeScreen';
 import RegisterScreen from './components/screens/RegisterScreen';
-import POSScreen from './components/screens/POSScreen'; // Pantalla principal del Punto de Venta
-import AdminScreen from './components/screens/AdminScreen'; // Vista de Administración
+import POSScreen from './components/screens/POSScreen';
+import AdminScreen from './components/screens/AdminScreen';
 import NotificationBanner from './components/NotificationBanner';
+import LoginScreen from './components/screens/LoginScreen';
 
-// Define tu número mágico aquí (Considera un método más seguro en producción)
-const ADMIN_PHONE_NUMBER = '0000000000';
+// --- Interfaz de Sesión ---
+interface SessionData {
+  uid: string;
+  email: string | null;
+  role: string;
+  stationId: string | null;
+}
 
 export default function App(): React.ReactNode {
-  // Estados para controlar la vista actual y los datos del cliente/notificaciones
-  const [view, setView] = useState('home'); // Vistas: 'home', 'register', 'pos', 'admin'
-  const [activeCustomer, setActiveCustomer] = useState(null); // Cliente actualmente activo en el POS
-  const [notification, setNotification] = useState(null); // Para mostrar mensajes al usuario
+  // --- Estados ---
+  const [view, setView] = useState('home'); // 'home' es ahora el default
+  const [activeCustomer, setActiveCustomer] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [sessionUser, setSessionUser] = useState<SessionData | null>(null);
+  const [authStatus, setAuthStatus] = useState<'loading' | 'signedIn' | 'signedOut'>('loading');
 
-  // Efecto para limpiar notificaciones después de 5 segundos
+  // Efecto para limpiar notificaciones
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 5000);
@@ -29,105 +44,171 @@ export default function App(): React.ReactNode {
     }
   }, [notification]);
 
+  // --- Efecto de Auth MEJORADO ---
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setAuthStatus('loading');
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          const session: SessionData = {
+            uid: user.uid,
+            email: user.email,
+            role: userData.role || 'Despachador',
+            stationId: userData.stationId || null
+          };
+          setSessionUser(session);
+          setAuthStatus('signedIn');
+
+          // --- ¡CAMBIO REALIZADO! ---
+          // Ya no redirige automáticamente. 
+          // Siempre establece la vista en 'home' después de iniciar sesión.
+          setView('home'); 
+
+        } else {
+          showNotification('Error: Usuario no registrado en la base de datos.', 'error');
+          await signOut(auth);
+          setSessionUser(null);
+          setAuthStatus('signedOut');
+          setView('home'); // Forzar vista a home
+        }
+      } else {
+        setSessionUser(null);
+        setAuthStatus('signedOut');
+        setView('home'); // Forzar vista a home
+      }
+    });
+
+    return () => unsubscribe();
+  }, []); // Dependencia vacía, solo se ejecuta al montar
+
   // Función para mostrar notificaciones
-  const showNotification = (message, type = 'info') => {
+  const showNotification = useCallback((message: string, type = 'info') => {
     setNotification({ message, type });
-  };
+  }, []);
 
-  // Manejador para buscar cliente o acceder al panel de admin
-  const handleSearch = useCallback(async (phone) => {
-    // --- LÓGICA DE ADMIN ---
-    if (phone === ADMIN_PHONE_NUMBER) {
-        setView('admin');
-        showNotification('Acceso de Administrador concedido.', 'info');
-        setActiveCustomer(null);
-        return; // Detiene aquí si es admin
-    }
-    // --- FIN LÓGICA DE ADMIN ---
+  // --- Funciones de Auth ---
+  const handleLogin = useCallback(async (email: string, password: string) => {
+    // La lógica de redirección ya no está aquí, está en onAuthStateChanged
+    await signInWithEmailAndPassword(auth, email, password);
+  }, []);
 
-    // --- LÓGICA DE BÚSQUEDA DE CLIENTE ---
+  const handleLogout = useCallback(async () => {
+    await signOut(auth);
+    setView('home'); // Al salir, siempre a home
+    setActiveCustomer(null);
+  }, []);
+
+  // --- Manejador de Búsqueda (SIMPLIFICADO) ---
+  const handleSearch = useCallback(async (phone: string) => {
+    // ¡Ya no hay lógica de admin aquí!
     try {
-      // LLAMADA REAL AL SERVICIO (Asegúrate que `findCustomerByPhone` exista y funcione)
       const customer = await findCustomerByPhone(phone);
-
       if (customer) {
         setActiveCustomer(customer);
-        setView('pos'); // Cambia a la vista del Punto de Venta
+        setView('pos');
         showNotification(`Cliente ${customer.name} encontrado.`, 'success');
       } else {
-        // Muestra error solo si no se encontró un cliente normal
         showNotification('Cliente no encontrado. Puede registrarlo.', 'error');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido al buscar';
+      const errorMessage = error instanceof Error ? error.message : 'Error al registrar';
       showNotification(errorMessage, 'error');
     }
-  }, []); // Dependencias vacías si `findCustomerByPhone` no depende de props/estado externo
+  }, [showNotification]); // Dependencia actualizada
 
-  // Navega a la pantalla de registro
+  // --- Funciones de Navegación ---
   const handleStartRegistration = useCallback(() => {
     setView('register');
   }, []);
   
-  // Regresa a la pantalla de inicio desde cualquier otra vista
   const handleBackToHome = useCallback(() => {
     setView('home');
-    setActiveCustomer(null); // Limpia el cliente activo al volver a home
+    setActiveCustomer(null);
   }, []);
 
-  // Manejador para registrar un nuevo cliente
-  const handleRegister = useCallback(async (name, phone) => {
-      try {
-          // LLAMADA REAL AL SERVICIO (Asegúrate que `apiRegisterCustomer` exista y funcione)
-          const newCustomer = await apiRegisterCustomer(name, phone);
-          setView('home'); // Regresa a home después del registro exitoso
-          showNotification(`¡Cliente ${newCustomer.name} registrado con éxito!`, 'success');
-          return true; // Indica éxito
-      } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Error al registrar';
-          showNotification(errorMessage, 'error');
-          return false; // Indica fallo
-      }
-  }, []); // Dependencias vacías si `apiRegisterCustomer` no depende de props/estado externo
-  
-  // Función que decide qué componente de pantalla renderizar
+  const handleRegister = useCallback(async (name: string, phone: string) => {
+    try {
+      const newCustomer = await apiRegisterCustomer(name, phone);
+      setView('home');
+      showNotification(`¡Cliente ${newCustomer.name} registrado con éxito!`, 'success');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error al registrar';
+      showNotification(errorMessage, 'error');
+      return false;
+    }
+  }, [showNotification]);
+
+  // --- Renderizado de Vistas (Actualizado) ---
   const renderView = () => {
+    // Definimos la vista 'home' para reutilizarla
+    const homeScreen = (
+      <HomeScreen 
+        onSearch={handleSearch} 
+        onRegister={handleStartRegistration} 
+        // Pasamos la sesión completa y los nuevos handlers
+        session={sessionUser}
+        onGoToLogin={() => setView('login')}
+        onGoToAdmin={() => setView('admin')}
+      />
+    );
+
     switch (view) {
-      case 'pos': // Vista del Punto de Venta
-        // Asegúrate de que activeCustomer exista antes de renderizar POSScreen
+      case 'admin':
+        // Proteger la ruta de admin
+        const isAdmin = sessionUser?.role === 'Super Admin' || sessionUser?.role === 'Administrador' || sessionUser?.role === 'Coordinador';
+        if (isAdmin) {
+          return <AdminScreen onBack={handleBackToHome} showNotification={showNotification} />;
+        }
+        // Si no es admin (ej. un Despachador) pero intenta ir a 'admin', lo mandamos a 'home'
+        setView('home');
+        return homeScreen;
+
+      case 'pos':
         if (activeCustomer) {
           return <POSScreen customer={activeCustomer} onBack={handleBackToHome} showNotification={showNotification} />;
         }
-        // Si por alguna razón view es 'pos' pero no hay cliente, regresa a 'home'
-        setView('home'); // Corrección: Cambia la vista en lugar de retornar HomeScreen directamente aquí
-        return <HomeScreen onSearch={handleSearch} onRegister={handleStartRegistration} />; // Muestra HomeScreen mientras cambia el estado
-        
+        setView('home'); // Si no hay cliente, a home
+        return homeScreen;
+      
       case 'register':
-        // CORRECCIÓN: Se eliminó showNotification de las props pasadas a RegisterScreen
         return <RegisterScreen onRegister={handleRegister} onBack={handleBackToHome} />; 
-      case 'admin': // Vista de Administración
-        return <AdminScreen onBack={handleBackToHome} showNotification={showNotification} />;
+
       case 'home':
-      default: // Por defecto, muestra la pantalla de inicio
-        return <HomeScreen onSearch={handleSearch} onRegister={handleStartRegistration} />;
+      default:
+        return homeScreen;
     }
   };
 
-  // Renderizado principal de la aplicación
+  // --- Renderizado Principal (Actualizado) ---
   return (
-    // Contenedor principal con estilos base
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
-      {/* Contenedor para centrar el contenido y limitar el ancho */}
       <div className="w-full max-w-2xl mx-auto"> 
-        <Header /> {/* Componente de cabecera */}
+        
+        {/* El Header ahora solo muestra email y botón de Logout (si está logueado) */}
+        <Header userEmail={sessionUser?.email || null} onLogout={handleLogout} /> 
+        
         <main className="mt-8">
-          {/* Muestra el banner de notificación si existe */}
           {notification && <NotificationBanner notification={notification} onDismiss={() => setNotification(null)} />}
-          {/* Renderiza la vista activa */}
-          {renderView()}
+          
+          {authStatus === 'loading' ? (
+            // --- 1. Cargando sesión ---
+            <div className="text-center py-10">
+              <p className="text-gray-500">Cargando sesión...</p>
+            </div>
+          ) : view === 'login' ? (
+            // --- 2. Vista de Login ---
+            <LoginScreen onLogin={handleLogin} />
+          ) : (
+            // --- 3. Vistas principales (Home, Admin, POS, etc.) ---
+            renderView()
+          )}
         </main>
       </div>
     </div>
   );
 }
-
