@@ -525,7 +525,7 @@ export default function POSScreen({ customer, onBack, showNotification }) {
                     disabled={isLoading || cart.length === 0 || total < 0} 
                     className="w-full mt-4 bg-blue-600 text-white font-extrabold text-xl py-5 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-transform transform hover:scale-105"
                 >
-                  {isLoading ? 'Procesando...' : 'PAGAR CON TERMINAL BANORTE'}
+                  {isLoading ? 'Procesando...' : 'PAGAR CON TERMINAL BANORTEE'}
                 </button>
               </div>
             </div>
