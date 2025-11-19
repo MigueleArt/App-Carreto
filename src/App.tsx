@@ -2,15 +2,16 @@ import React, { useState, useCallback, useEffect } from 'react';
 
 // --- Importaciones de Firebase ---
 import { auth, db } from './firebaseConfig';
-import { 
-  signInWithEmailAndPassword, 
-  onAuthStateChanged, 
-  User, 
-  signOut 
+import {
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
 } from 'firebase/auth';
-import { doc, getDoc } from "firebase/firestore";
+import {
+  collection, query, where, getDocs
+} from "firebase/firestore";
 
-// --- Servicios y Componentes ---
+// --- Servicios y Componentes (Manteniendo las rutas originales) ---
 import { findCustomerByPhone, registerCustomer as apiRegisterCustomer } from './services/customerService';
 import Header from './components/Header';
 import HomeScreen from './components/screens/HomeScreen';
@@ -30,9 +31,9 @@ interface SessionData {
 
 export default function App(): React.ReactNode {
   // --- Estados ---
-  const [view, setView] = useState('home'); // 'home' es ahora el default
+  const [view, setView] = useState('home');
   const [activeCustomer, setActiveCustomer] = useState(null);
-  const [notification, setNotification] = useState(null);
+  const [notification, setNotification] = useState<any>(null);
   const [sessionUser, setSessionUser] = useState<SessionData | null>(null);
   const [authStatus, setAuthStatus] = useState<'loading' | 'signedIn' | 'signedOut'>('loading');
 
@@ -44,67 +45,84 @@ export default function App(): React.ReactNode {
     }
   }, [notification]);
 
-  // --- Efecto de Auth MEJORADO ---
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setAuthStatus('loading');
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          const session: SessionData = {
-            uid: user.uid,
-            email: user.email,
-            role: userData.role || 'Despachador',
-            stationId: userData.stationId || null
-          };
-          setSessionUser(session);
-          setAuthStatus('signedIn');
-
-          // --- ¡CAMBIO REALIZADO! ---
-          // Ya no redirige automáticamente. 
-          // Siempre establece la vista en 'home' después de iniciar sesión.
-          setView('home'); 
-
-        } else {
-          showNotification('Error: Usuario no registrado en la base de datos.', 'error');
-          await signOut(auth);
-          setSessionUser(null);
-          setAuthStatus('signedOut');
-          setView('home'); // Forzar vista a home
-        }
-      } else {
-        setSessionUser(null);
-        setAuthStatus('signedOut');
-        setView('home'); // Forzar vista a home
-      }
-    });
-
-    return () => unsubscribe();
-  }, []); // Dependencia vacía, solo se ejecuta al montar
-
   // Función para mostrar notificaciones
   const showNotification = useCallback((message: string, type = 'info') => {
     setNotification({ message, type });
   }, []);
 
-  // --- Funciones de Auth ---
+  // --- Efecto de Auth Corregido (Busca por Email para IDs Aleatorios) ---
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && user.email) {
+        setAuthStatus('loading');
+
+        try {
+          const usersCol = collection(db, 'users');
+          // IMPORTANTE: Consulta por email en minúsculas para compatibilidad.
+          const q = query(usersCol, where('email', '==', user.email.toLowerCase()));
+
+          const snapshot = await getDocs(q);
+
+          if (!snapshot.empty) {
+            const userDoc = snapshot.docs[0];
+            const userData: any = userDoc.data();
+
+            const session: SessionData = {
+              uid: user.uid,
+              email: user.email,
+              role: userData.role || 'Despachador',
+              stationId: userData.stationId || null
+            };
+
+            setSessionUser(session);
+            setAuthStatus('signedIn');
+            setView('home');
+          } else {
+            showNotification('Error: Usuario autenticado pero sin perfil de rol. Acceso denegado.', 'error');
+            await signOut(auth);
+            setSessionUser(null);
+            setAuthStatus('signedOut');
+            setView('home');
+          }
+        } catch (error) {
+          console.error("Error al cargar perfil de usuario:", error);
+          showNotification("Error de conexión/permisos al cargar el perfil de usuario.", "error");
+          await signOut(auth);
+          setSessionUser(null);
+          setAuthStatus('signedOut');
+          setView('home');
+        }
+      } else {
+        setSessionUser(null);
+        setAuthStatus('signedOut');
+        setView('home');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [showNotification]);
+
+  // --- Funciones de Auth y Navegación (sin cambios) ---
   const handleLogin = useCallback(async (email: string, password: string) => {
-    // La lógica de redirección ya no está aquí, está en onAuthStateChanged
     await signInWithEmailAndPassword(auth, email, password);
   }, []);
 
   const handleLogout = useCallback(async () => {
     await signOut(auth);
-    setView('home'); // Al salir, siempre a home
+    setView('home');
     setActiveCustomer(null);
   }, []);
 
-  // --- Manejador de Búsqueda (SIMPLIFICADO) ---
+  const handleBackToHome = useCallback(() => {
+    setView('home');
+    setActiveCustomer(null);
+  }, []);
+
+  const handleStartRegistration = useCallback(() => {
+    setView('register');
+  }, []);
+
   const handleSearch = useCallback(async (phone: string) => {
-    // ¡Ya no hay lógica de admin aquí!
     try {
       const customer = await findCustomerByPhone(phone);
       if (customer) {
@@ -115,20 +133,10 @@ export default function App(): React.ReactNode {
         showNotification('Cliente no encontrado. Puede registrarlo.', 'error');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al registrar';
+      const errorMessage = error instanceof Error ? error.message : 'Error al buscar cliente';
       showNotification(errorMessage, 'error');
     }
-  }, [showNotification]); // Dependencia actualizada
-
-  // --- Funciones de Navegación ---
-  const handleStartRegistration = useCallback(() => {
-    setView('register');
-  }, []);
-  
-  const handleBackToHome = useCallback(() => {
-    setView('home');
-    setActiveCustomer(null);
-  }, []);
+  }, [showNotification]);
 
   const handleRegister = useCallback(async (name: string, phone: string) => {
     try {
@@ -143,14 +151,13 @@ export default function App(): React.ReactNode {
     }
   }, [showNotification]);
 
-  // --- Renderizado de Vistas (Actualizado) ---
-  const renderView = () => {
-    // Definimos la vista 'home' para reutilizarla
+
+  // --- Renderizado de Vistas (Aislamiento del Contenido) ---
+  const renderViewContent = () => {
     const homeScreen = (
-      <HomeScreen 
-        onSearch={handleSearch} 
-        onRegister={handleStartRegistration} 
-        // Pasamos la sesión completa y los nuevos handlers
+      <HomeScreen
+        onSearch={handleSearch}
+        onRegister={handleStartRegistration}
         session={sessionUser}
         onGoToLogin={() => setView('login')}
         onGoToAdmin={() => setView('admin')}
@@ -159,12 +166,11 @@ export default function App(): React.ReactNode {
 
     switch (view) {
       case 'admin':
-        // Proteger la ruta de admin
         const isAdmin = sessionUser?.role === 'Super Admin' || sessionUser?.role === 'Administrador' || sessionUser?.role === 'Coordinador';
-        if (isAdmin) {
-          return <AdminScreen onBack={handleBackToHome} showNotification={showNotification} />;
+        if (isAdmin && sessionUser) {
+          // Retorna AdminScreen que es Fullscreen por diseño
+          return <AdminScreen onBack={handleBackToHome} showNotification={showNotification} session={sessionUser} />;
         }
-        // Si no es admin (ej. un Despachador) pero intenta ir a 'admin', lo mandamos a 'home'
         setView('home');
         return homeScreen;
 
@@ -172,11 +178,11 @@ export default function App(): React.ReactNode {
         if (activeCustomer) {
           return <POSScreen customer={activeCustomer} onBack={handleBackToHome} showNotification={showNotification} />;
         }
-        setView('home'); // Si no hay cliente, a home
+        setView('home');
         return homeScreen;
-      
+
       case 'register':
-        return <RegisterScreen onRegister={handleRegister} onBack={handleBackToHome} />; 
+        return <RegisterScreen onRegister={handleRegister} onBack={handleBackToHome} />;
 
       case 'home':
       default:
@@ -184,28 +190,31 @@ export default function App(): React.ReactNode {
     }
   };
 
-  // --- Renderizado Principal (Actualizado) ---
+  // --- Renderizado Principal (MODIFICADO PARA FULLSCREEN) ---
+
+  const isFullScreenView = view === 'admin';
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-2xl mx-auto"> 
-        
-        {/* El Header ahora solo muestra email y botón de Logout (si está logueado) */}
-        <Header userEmail={sessionUser?.email || null} onLogout={handleLogout} /> 
-        
-        <main className="mt-8">
+    // El contenedor principal usa clases condicionales para el padding y el ancho
+    <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col ${isFullScreenView ? 'p-0 w-full' : 'p-4 sm:p-6 lg:p-8 items-center'}`}>
+
+      {/* Contenedor interno: max-w-2xl para Home/Login, w-full para Admin */}
+      <div className={`${isFullScreenView ? 'w-full' : 'w-full max-w-2xl mx-auto'}`}>
+
+        {/* Ocultar Header si estamos en la vista de Admin */}
+        {!isFullScreenView && <Header userEmail={sessionUser?.email || null} onLogout={handleLogout} />}
+
+        <main className={isFullScreenView ? 'h-screen' : 'mt-8'}>
           {notification && <NotificationBanner notification={notification} onDismiss={() => setNotification(null)} />}
-          
+
           {authStatus === 'loading' ? (
-            // --- 1. Cargando sesión ---
             <div className="text-center py-10">
               <p className="text-gray-500">Cargando sesión...</p>
             </div>
           ) : view === 'login' ? (
-            // --- 2. Vista de Login ---
             <LoginScreen onLogin={handleLogin} />
           ) : (
-            // --- 3. Vistas principales (Home, Admin, POS, etc.) ---
-            renderView()
+            renderViewContent()
           )}
         </main>
       </div>
