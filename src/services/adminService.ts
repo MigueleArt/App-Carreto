@@ -1,10 +1,10 @@
 import { db } from '../firebaseConfig';
-import {
-    doc, getDoc, setDoc, collection, getDocs, addDoc, updateDoc,
-    query, where, orderBy, Timestamp, limit
+import { 
+    doc, getDoc, setDoc, collection, getDocs, addDoc, updateDoc, 
+    query, where, orderBy, Timestamp, limit 
 } from "firebase/firestore";
 
-// --- Interfaces ---
+// --- Interfaces (Deberían estar en ../types) ---
 export interface GasPrices {
     magnaPrice: number;
     premiumPrice: number;
@@ -32,7 +32,7 @@ export interface ProductData {
     isActive: boolean;
 }
 
-// Constantes de Roles (para referencia local, deben coincidir con AdminScreen)
+// --- Constantes de Roles (Asumimos que están en otro archivo, pero las definimos aquí por seguridad) ---
 const ROLES = {
     SUPER_ADMIN: 'Super Admin',
     ADMIN: 'Administrador',
@@ -88,10 +88,10 @@ export const getUsers = async (): Promise<UserData[]> => {
     } catch (error) {
         console.error("Error getUsers (fallback sin orden):", error);
         try {
-            const snapshot = await getDocs(usersColRef);
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
-        } catch (e) {
-            throw new Error("Error al cargar usuarios.");
+             const snapshot = await getDocs(usersColRef);
+             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+        } catch (e) { 
+            throw new Error("Error al cargar usuarios."); 
         }
     }
 };
@@ -99,7 +99,7 @@ export const getUsers = async (): Promise<UserData[]> => {
 export const addUser = async (userData: UserData): Promise<void> => {
     const usersColRef = collection(db, "users");
     try {
-        // --- OPTIMIZACIÓN: Guardar email en minúsculas ---
+        // Guarda el email en minúsculas para asegurar la búsqueda por email en App.tsx
         const dataToSave = {
             ...userData,
             email: userData.email.toLowerCase(),
@@ -114,10 +114,10 @@ export const addUser = async (userData: UserData): Promise<void> => {
 
 export const updateUser = async (userId: string, userData: Partial<UserData>): Promise<void> => {
     try {
-        const dataToUpdate = userData.email
+        const dataToUpdate = userData.email 
             ? { ...userData, email: userData.email.toLowerCase() }
             : userData;
-
+            
         await updateDoc(doc(db, "users", userId), dataToUpdate);
     } catch (error) {
         console.error("Error updateUser:", error);
@@ -158,22 +158,62 @@ export const updateStation = async (stationId: string, stationData: Partial<Stat
 };
 
 // ==========================================
-// 4. HISTORIAL Y DASHBOARD
+// 4. FUNCIONES DEL DASHBOARD Y REPORTES
 // ==========================================
 
-export const getDashboardSummary = async (session: any) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
+/**
+ * Obtiene los totales históricos de ventas, transacciones y puntos canjeados.
+ * Aplica filtro RBAC por stationId para Coordinadores.
+ */
+export const getHistoricalTotals = async (session: any) => {
     const salesCol = collection(db, "sales");
-    let constraints: any[] = [where("date", ">=", Timestamp.fromDate(today))];
+    let constraints: any[] = [];
 
-    // --- OPTIMIZACIÓN RBAC: Filtrar por estación en la Query ---
+    // RBAC: Si es Coordinador, solo ve el total histórico de su estación.
     if (session.role === ROLES.COORDINADOR && session.stationId) {
         constraints.push(where("stationId", "==", session.stationId));
     }
 
-    // Se asume un índice compuesto en Firestore: [date (ASC), stationId (ASC)]
+    const q = query(salesCol, ...constraints);
+
+    try {
+        const snapshot = await getDocs(q);
+        let totalRevenue = 0;
+        let totalPointsRedeemed = 0;
+        let totalSalesCount = 0;
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            totalRevenue += Number(data.total) || 0;
+            totalPointsRedeemed += Number(data.redeemedPoints) || 0;
+            totalSalesCount++;
+        });
+
+        return { totalRevenue, totalPointsRedeemed, totalSalesCount };
+    } catch (error) {
+        console.error("Error al obtener totales históricos:", error);
+        throw new Error("No se pudo obtener el resumen histórico. Revise la consola.");
+    }
+};
+
+/**
+ * Obtiene el resumen de ventas, transacciones y puntos del día actual.
+ * Aplica filtro RBAC por stationId para Coordinadores.
+ */
+export const getDashboardSummary = async (session: any) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const salesCol = collection(db, "sales");
+    // Filtro de fecha para hoy
+    let constraints: any[] = [where("date", ">=", Timestamp.fromDate(today))];
+
+    // OPTIMIZACIÓN RBAC: Filtrar por estación en la Query (Requiere índice compuesto)
+    if (session.role === ROLES.COORDINADOR && session.stationId) {
+        constraints.push(where("stationId", "==", session.stationId));
+        // NOTA: Requiere índice compuesto: [date (ASC), stationId (ASC)]
+    }
+
     const q = query(salesCol, ...constraints);
 
     try {
@@ -196,12 +236,14 @@ export const getDashboardSummary = async (session: any) => {
     }
 };
 
+/**
+ * Obtiene el historial de ventas con filtros de rango de fechas y estación.
+ * Se eliminó el filtro en memoria de despachador y se mejoró el manejo de fechas.
+ */
 export const getSalesHistory = async (filters: any, session: any) => {
     const salesCol = collection(db, "sales");
-
-    // El orden siempre debe ser el primer constraint
+    
     let constraints: any[] = [orderBy("date", "desc")];
-
     const finalFilters = { ...filters };
 
     // 1. Aplicar filtro de seguridad RBAC para Coordinador
@@ -215,12 +257,12 @@ export const getSalesHistory = async (filters: any, session: any) => {
     }
     if (finalFilters.endDate) {
         const end = new Date(finalFilters.endDate);
-        end.setHours(23, 59, 59, 999);
+        // Aseguramos que la fecha final incluya todo el día
+        end.setHours(23, 59, 59, 999); 
         constraints.push(where("date", "<=", Timestamp.fromDate(end)));
     }
 
-    // 3. Filtros de Estación/Método de Pago (Directo en Query)
-    // NOTA: Si usas más de dos "where" diferentes, necesitarás un índice compuesto.
+    // 3. Filtros de Estación/Método de Pago
     if (finalFilters.stationId) {
         constraints.push(where("stationId", "==", finalFilters.stationId));
     }
@@ -229,26 +271,21 @@ export const getSalesHistory = async (filters: any, session: any) => {
     }
 
     try {
-        // Limite de 1000 resultados para evitar sobrecargar (buena práctica)
-        const q = query(salesCol, ...constraints, limit(1000));
+        // Limite de 1000 resultados para evitar sobrecargar
+        const q = query(salesCol, ...constraints, limit(1000)); 
         const snapshot = await getDocs(q);
-        const sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-
-        // 4. Filtro secundario en memoria (Despachador) - solo si no se incluyó en la query
-        return sales.filter(sale => {
-            if (finalFilters.dispatcherId && sale.dispatcherEmail !== finalFilters.dispatcherId) {
-                return false;
-            }
-            return true;
-        });
+        
+        // Retornamos directamente los documentos ya que los filtros en memoria fueron eliminados.
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 
     } catch (error: any) {
         console.error("Error historial:", error);
+        // Fallback en caso de error de índice no encontrado
         if (error.code === 'failed-precondition') {
-            console.warn("Falta índice compuesto. Fallback a últimas 50 ventas...");
-            const fallbackQ = query(salesCol, orderBy("date", "desc"), limit(50));
-            const snap = await getDocs(fallbackQ);
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+             console.warn("Falta índice compuesto. Fallback a últimas 50 ventas...");
+             const fallbackQ = query(salesCol, orderBy("date", "desc"), limit(50));
+             const snap = await getDocs(fallbackQ);
+             return snap.docs.map(d => ({id: d.id, ...d.data()}));
         }
         throw new Error("Error al cargar historial.");
     }
@@ -261,7 +298,7 @@ export const getSalesHistory = async (filters: any, session: any) => {
 export const getProducts = async (): Promise<ProductData[]> => {
     const productsColRef = collection(db, "products");
     try {
-        const q = query(productsColRef, orderBy("name"));
+        const q = query(productsColRef, orderBy("name")); 
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProductData));
     } catch (error) {
@@ -273,16 +310,16 @@ export const getProducts = async (): Promise<ProductData[]> => {
 export const addProduct = async (productData: ProductData): Promise<ProductData> => {
     const productsColRef = collection(db, "products");
     try {
-        const dataToSave = {
-            ...productData,
-            price: Number(productData.price) || 0,
+        const dataToSave = { 
+            ...productData, 
+            price: Number(productData.price) || 0, 
             isActive: productData.isActive !== undefined ? productData.isActive : true,
-            createdAt: new Date()
+            createdAt: new Date() 
         };
         const docRef = await addDoc(productsColRef, dataToSave);
         return { id: docRef.id, ...dataToSave } as ProductData;
-    } catch (error) {
-        throw new Error("Error al crear producto.");
+    } catch (error) { 
+        throw new Error("Error al crear producto."); 
     }
 };
 
@@ -293,7 +330,7 @@ export const updateProduct = async (productId: string, productData: Partial<Prod
             (productData as any).price = Number(productData.price) || 0;
         }
         await updateDoc(productDocRef, { ...productData, lastUpdated: new Date() });
-    } catch (error) {
-        throw new Error("Error al actualizar producto.");
+    } catch (error) { 
+        throw new Error("Error al actualizar producto."); 
     }
 };
