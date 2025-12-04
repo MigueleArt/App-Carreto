@@ -1,10 +1,10 @@
 // src/components/admin/sections/UserManagementSection.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { getUsers, addUser, updateUser } from '../../../services/adminService';
+import { getUsers, addUser, updateUser, getStations } from '../../../services/adminService'; // Importamos getStations
 import UserModal from '../modals/UserModal';
 import { ROLES } from '../../constants/roles'; 
-import { SessionData, UserData } from '../../../types';
-import { PlusIcon, PencilIcon } from '../../Icons'; // Asume que moviste los iconos aquí
+import { SessionData, UserData, StationData } from '../../../types'; // Importamos StationData
+import { PlusIcon, PencilIcon } from '../../Icons'; 
 
 interface UserManagementSectionProps {
     session: SessionData;
@@ -13,10 +13,13 @@ interface UserManagementSectionProps {
 
 const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotification, session }) => {
     const [users, setUsers] = useState<UserData[]>([]);
+    const [stations, setStations] = useState<StationData[]>([]); // NUEVO: Estado para las estaciones
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingStations, setIsLoadingStations] = useState(true); // NUEVO: Estado de carga para estaciones
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
 
+    // Función para obtener la lista de usuarios (sin cambios relevantes)
     const fetchUsers = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -36,7 +39,23 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
         }
     }, [showNotification, session]);
 
-    useEffect(() => { fetchUsers(); }, [fetchUsers]);
+    // NUEVO: Función para obtener la lista de estaciones
+    const fetchStations = useCallback(async () => {
+        setIsLoadingStations(true);
+        try {
+            const stationList = await getStations();
+            setStations(stationList);
+        } catch (error: any) {
+            showNotification("Error al cargar estaciones: " + error.message, 'error');
+        } finally {
+            setIsLoadingStations(false);
+        }
+    }, [showNotification]);
+
+    useEffect(() => { 
+        fetchUsers(); 
+        fetchStations(); // Llamamos a la función de estaciones al montar
+    }, [fetchUsers, fetchStations]);
 
     const handleEdit = (user: UserData) => {
         if (session.role === ROLES.ADMIN && user.role === ROLES.SUPER_ADMIN) {
@@ -64,17 +83,33 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
         }
     };
 
+    // Unimos los estados de carga para el botón de "Nuevo Usuario"
+    const isReady = !isLoading && !isLoadingStations;
+
     return (
         <div className="animate-fade-in">
-            {isUserModalOpen && <UserModal user={editingUser} onClose={() => { setIsUserModalOpen(false); setEditingUser(null); }} onSave={handleSaveUser} showNotification={showNotification} session={session} />}
+            {isUserModalOpen && (
+                <UserModal 
+                    user={editingUser} 
+                    stations={stations} // PASAMOS LA LISTA DE ESTACIONES AL MODAL
+                    onClose={() => { setIsUserModalOpen(false); setEditingUser(null); }} 
+                    onSave={handleSaveUser} 
+                    showNotification={showNotification} 
+                    session={session} 
+                />
+            )}
             
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Usuarios</h2>
                     <p className="text-sm text-gray-500">Gestión de personal y permisos.</p>
                 </div>
-                <button className="bg-emerald-600 text-white font-semibold py-2.5 px-5 rounded-lg hover:bg-emerald-700 flex items-center gap-2 shadow-lg transition-all hover:-translate-y-0.5" onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }}>
-                    <PlusIcon className="w-5 h-5" /> Nuevo Usuario
+                <button 
+                    className="bg-emerald-600 text-white font-semibold py-2.5 px-5 rounded-lg hover:bg-emerald-700 flex items-center gap-2 shadow-lg transition-all hover:-translate-y-0.5 disabled:bg-gray-400" 
+                    onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }}
+                    disabled={!isReady} // Deshabilitar si aún se están cargando los datos
+                >
+                    <PlusIcon className="w-5 h-5" /> {isLoadingStations ? 'Cargando Estaciones...' : 'Nuevo Usuario'}
                 </button>
             </div>
 
