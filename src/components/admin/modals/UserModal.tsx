@@ -1,21 +1,23 @@
 // src/components/admin/modals/UserModal.tsx
 import React, { useState, useEffect } from 'react';
 import { ROLES } from '../../constants/roles'; 
-import { SessionData, UserData } from '../../../types'; 
+import { SessionData, UserData, StationData } from '../../../types'; 
 
 interface UserModalProps {
     user: UserData | null;
+    stations: StationData[]; // PROPIEDAD: Lista de estaciones disponibles (obtenida de UserManagementSection)
     onClose: () => void;
     onSave: (userData: Partial<UserData>) => Promise<void>;
     showNotification: (message: string, type: 'success' | 'error' | 'info') => void;
     session: SessionData;
 }
 
-const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, showNotification, session }) => {
+const UserModal: React.FC<UserModalProps> = ({ user, stations, onClose, onSave, showNotification, session }) => {
     const [email, setEmail] = useState(user?.email || '');
     const [role, setRole] = useState(user?.role || ROLES.DESPACHADOR);
     const [stationId, setStationId] = useState(user?.stationId || '');
 
+    // Lógica de permisos en el Modal
     const canAssignRole = (targetRole: string) => {
         if (session.role === ROLES.SUPER_ADMIN) return true;
         if (session.role === ROLES.ADMIN) return targetRole !== ROLES.SUPER_ADMIN;
@@ -23,11 +25,25 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, showNotifi
         return false;
     };
 
+    // 1. Si es Coordinador, la estación se fija automáticamente a su propia estación
     useEffect(() => {
         if (session.role === ROLES.COORDINADOR) {
             setStationId(session.stationId || '');
         }
     }, [session]);
+    
+    // 2. Comprobación de que el stationId actual es válido si el rol requiere una estación
+    useEffect(() => {
+        const stationRequired = role !== ROLES.SUPER_ADMIN && role !== ROLES.ADMIN;
+        
+        // Si el rol requiere estación y el valor actual no está en la lista de estaciones, lo reseteamos
+        // Esto solo se aplica si la lista de estaciones ya se cargó (stations.length > 0)
+        if (stationRequired && stations.length > 0 && stationId && !stations.some(s => s.id === stationId)) {
+             // Podríamos resetear el valor, pero si es edición lo mantenemos para no perder datos.
+             // Para la creación, la opción por defecto es "Seleccione una estación".
+        }
+    }, [stations, role, stationId]);
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,13 +51,21 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, showNotifi
             showNotification("Email y Rol son requeridos.", "error");
             return;
         }
-        if (role !== ROLES.SUPER_ADMIN && role !== ROLES.ADMIN && !stationId) {
+        
+        const stationRequired = role !== ROLES.SUPER_ADMIN && role !== ROLES.ADMIN;
+
+        // 3. Validación: Si el rol REQUIERE estación y no se ha seleccionado ninguna
+        if (stationRequired && !stationId) {
             showNotification("Debe asignar una Estación a Coordinadores y Despachadores.", "error");
             return;
         }
+
         onSave({ email, role, stationId });
     };
-
+    
+    // 4. Determina si el campo de estación debe ser visible
+    const isStationRequired = role !== ROLES.SUPER_ADMIN && role !== ROLES.ADMIN;
+    
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-fade-in">
             <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
@@ -76,18 +100,28 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, showNotifi
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID Estación</label>
-                        <input 
-                            type="text" 
-                            value={stationId} 
-                            onChange={(e) => setStationId(e.target.value)} 
-                            placeholder="Ej. est-001" 
-                            className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
-                            disabled={session.role === ROLES.COORDINADOR} 
-                        />
-                        {session.role === ROLES.COORDINADOR && <p className="text-xs text-gray-400 mt-1">Fijo a su estación asignada.</p>}
-                    </div>
+                    {/* CAMPO DE ESTACIÓN - AHORA ES SELECT DINÁMICO */}
+                    {isStationRequired && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Seleccionar Estación</label>
+                            <select 
+                                value={stationId} 
+                                onChange={(e) => setStationId(e.target.value)} 
+                                required={isStationRequired}
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                                disabled={session.role === ROLES.COORDINADOR} // Bloquear si es Coordinador
+                            >
+                                <option value="" disabled>-- Seleccione una estación --</option>
+                                {/* Mapeo dinámico de estaciones */}
+                                {stations.map(station => (
+                                    <option key={station.id} value={station.id}>{station.name} ({station.id})</option>
+                                ))}
+                            </select>
+                            {session.role === ROLES.COORDINADOR && <p className="text-xs text-gray-400 mt-1">Fijo a su estación asignada.</p>}
+                            {stations.length === 0 && <p className="text-xs text-red-500 mt-1">Advertencia: No hay estaciones disponibles.</p>}
+                        </div>
+                    )}
+                    
                 </div>
 
                 <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex gap-3 justify-end border-t border-gray-100 dark:border-gray-700">
