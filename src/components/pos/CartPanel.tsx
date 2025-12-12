@@ -52,43 +52,62 @@ export const CartPanel: React.FC<CartPanelProps> = ({
         <div className="bg-white dark:bg-gray-800 shadow-lg rounded-2xl flex flex-col lg:min-h-[44rem]">
             {/* Sección de Cliente (Sin cambios) */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              {/* ...toda la lógica de la tarjeta de cliente no cambia... */}
                 <div className="animate-fade-in">
-                    <div className="bg-blue-50 dark:bg-blue-900/50 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
-                        <div className="flex justify-between items-center">
+                    {/* Tarjeta con diseño mejorado */}
+                    <div className="bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-gray-900 p-5 rounded-2xl border border-blue-100 dark:border-gray-700 shadow-sm relative overflow-hidden">
+                        
+                        {/* Decoración de fondo sutil */}
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-400 rounded-full opacity-5 blur-2xl pointer-events-none"></div>
+
+                        {/* Encabezado: Nombre y Botón Cambiar */}
+                        <div className="flex justify-between items-start mb-2 relative z-10">
                             <div>
-                                <p className="font-bold text-lg text-blue-900 dark:text-blue-100">{customer.name}</p>
-                                <p className="text-sm text-blue-700 dark:text-blue-300">{customer.points.toLocaleString()} Puntos Disponibles</p>
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Cliente Frecuente</span>
+                                <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 leading-tight">{customer.name}</h3>
                             </div>
                             <button 
                                 onClick={onBack} 
-                                className="bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-300 text-sm font-semibold py-2 px-3 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
+                                className="text-xs bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-300 border border-gray-200 dark:border-gray-600 font-medium py-1.5 px-3 rounded-lg transition-colors shadow-sm"
                             >
                                 Cambiar
                             </button>
                         </div>
-                    </div>
-                    {customer.points > 0 && ( 
-                        <div className="flex gap-2 mt-4">
-                            <input 
-                                type="number" 
-                                placeholder={`Max ${Math.min(customer.points, Math.floor(subtotal / 0.50))}`} 
-                                value={redeemAmountInput} 
-                                onChange={(e) => setRedeemAmountInput(e.target.value)} 
-                                className="flex-grow p-2 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0 border border-gray-200 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                                max={customer.points}
-                                min="0"
-                                disabled={isLoading}
-                            />
-                            <button 
-                                onClick={handleApplyClick} 
-                                className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 flex-shrink-0 disabled:bg-gray-400 shadow-sm hover:shadow-md"
-                                disabled={!redeemAmountInput || parseInt(redeemAmountInput, 10) < 0 || isLoading}
-                            >
-                                Aplicar
-                            </button>
+
+                        {/* --- PUNTOS DESTACADOS --- */}
+                        <div className="flex flex-col items-center justify-center py-3 relative z-10">
+                            <div className="flex items-center gap-2">
+
+                                {/* Número de Puntos Grande */}
+                                <span className="text-5xl font-black text-gray-800 dark:text-white tracking-tighter">
+                                    {customer.points.toLocaleString()}
+                                </span>
+                            </div>
+                            <p className="text-sm font-medium text-gray-400 mt-1">Puntos Disponibles</p>
                         </div>
-                    )}
+
+                        {/* Input de Canje (Integrado visualmente) */}
+                        {customer.points > 0 && ( 
+                            <div className="mt-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-200 dark:border-gray-600 flex gap-2 shadow-sm relative z-10">
+                                <input 
+                                    type="number" 
+                                    placeholder={`Max ${Math.min(customer.points, Math.floor(customer.points))}`} 
+                                    value={redeemAmountInput} 
+                                    onChange={(e) => setRedeemAmountInput(e.target.value)} 
+                                    className="flex-grow bg-transparent px-3 py-2 text-gray-800 dark:text-gray-100 font-bold placeholder-gray-400 outline-none w-full"
+                                    max={customer.points}
+                                    min="0"
+                                    disabled={isLoading}
+                                />
+                                <button 
+                                    onClick={handleApplyClick} 
+                                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 px-5 rounded-lg shadow-md transition-all active:scale-95 disabled:bg-gray-300 disabled:shadow-none"
+                                    disabled={!redeemAmountInput || parseInt(redeemAmountInput, 10) < 0 || isLoading}
+                                >
+                                    Aplicar
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -106,11 +125,21 @@ export const CartPanel: React.FC<CartPanelProps> = ({
                             <p className="font-semibold text-gray-900 dark:text-gray-100">${item.price.toFixed(2)}</p>
                             <button 
                                 onClick={() => onRemoveItem(item.id)} 
-                                className="w-8 h-8 flex items-center justify-center rounded-full text-red-500 bg-red-100 dark:bg-red-800/50 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
+                                className="w-8 h-8 flex items-center justify-center rounded-full text-red-500 bg-red-100 dark:bg-red-800/50 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700 transition-colors shadow-sm"
                                 aria-label="Eliminar item"
                                 disabled={isLoading}
                             >
-                                <span className="font-bold text-xl leading-none">×</span>
+                                {/* Usamos un SVG en lugar de texto para un centrado perfecto */}
+                                <svg 
+                                    xmlns="http://www.w3.org/2000/svg" 
+                                    fill="none" 
+                                    viewBox="0 0 24 24" 
+                                    strokeWidth={2.5} 
+                                    stroke="currentColor" 
+                                    className="w-4 h-4"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                             </button>
                         </div>
                     </div>
