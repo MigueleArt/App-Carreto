@@ -114,9 +114,9 @@ const SalesHistorySection = ({ session, showNotification }: any) => {
                 
                 <FilterInput label="Método Pago" name="paymentMethod" value={filters.paymentMethod} onChange={handleFilterChange} type="select">
                     <option value="">Todos</option>
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Terminal">Terminal</option>
-                    <option value="Puntos">Puntos</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="terminal">Terminal</option>
+                    <option value="puntos">Puntos</option>
                 </FilterInput>
                 <FilterInput label="Desde" name="startDate" value={filters.startDate} onChange={handleFilterChange} type="date" />
                 <FilterInput label="Hasta" name="endDate" value={filters.endDate} onChange={handleFilterChange} type="date" />
