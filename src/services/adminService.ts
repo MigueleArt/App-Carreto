@@ -32,7 +32,7 @@ export interface ProductData {
     isActive: boolean;
 }
 
-// --- Constantes de Roles (Asumimos que están en otro archivo, pero las definimos aquí por seguridad) ---
+// --- Constantes de Roles ---
 const ROLES = {
     SUPER_ADMIN: 'Super Admin',
     ADMIN: 'Administrador',
@@ -161,15 +161,10 @@ export const updateStation = async (stationId: string, stationData: Partial<Stat
 // 4. FUNCIONES DEL DASHBOARD Y REPORTES
 // ==========================================
 
-/**
- * Obtiene los totales históricos de ventas, transacciones y puntos canjeados.
- * Aplica filtro RBAC por stationId para Coordinadores.
- */
 export const getHistoricalTotals = async (session: any) => {
     const salesCol = collection(db, "sales");
     let constraints: any[] = [];
 
-    // RBAC: Si es Coordinador, solo ve el total histórico de su estación.
     if (session.role === ROLES.COORDINADOR && session.stationId) {
         constraints.push(where("stationId", "==", session.stationId));
     }
@@ -196,22 +191,15 @@ export const getHistoricalTotals = async (session: any) => {
     }
 };
 
-/**
- * Obtiene el resumen de ventas, transacciones y puntos del día actual.
- * Aplica filtro RBAC por stationId para Coordinadores.
- */
 export const getDashboardSummary = async (session: any) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const salesCol = collection(db, "sales");
-    // Filtro de fecha para hoy
     let constraints: any[] = [where("date", ">=", Timestamp.fromDate(today))];
 
-    // OPTIMIZACIÓN RBAC: Filtrar por estación en la Query (Requiere índice compuesto)
     if (session.role === ROLES.COORDINADOR && session.stationId) {
         constraints.push(where("stationId", "==", session.stationId));
-        // NOTA: Requiere índice compuesto: [date (ASC), stationId (ASC)]
     }
 
     const q = query(salesCol, ...constraints);
@@ -237,13 +225,15 @@ export const getDashboardSummary = async (session: any) => {
 };
 
 /**
- * Obtiene el historial de ventas con filtros de rango de fechas y estación.
- * Se eliminó el filtro en memoria de despachador y se mejoró el manejo de fechas.
+ * Obtiene el historial de ventas con filtros de rango de fechas y estación/pago.
+ * Se optimizó la lógica para OMITIR los filtros cuando el valor es una cadena vacía.
  */
 export const getSalesHistory = async (filters: any, session: any) => {
     const salesCol = collection(db, "sales");
     
-    let constraints: any[] = [orderBy("date", "desc")];
+    // Si usas múltiples where, DEBES ORDENAR primero por la primera condición.
+    // Usaremos order by date desc, por lo que los where deben ser los últimos constraints
+    let constraints: any[] = [];
     const finalFilters = { ...filters };
 
     // 1. Aplicar filtro de seguridad RBAC para Coordinador
@@ -251,36 +241,38 @@ export const getSalesHistory = async (filters: any, session: any) => {
         finalFilters.stationId = session.stationId;
     }
 
-    // 2. Filtros de Fecha
+    // 2. Filtros de Estación (Solo si hay un valor seleccionado)
+    // El valor finalFilters.stationId nunca será '' si el usuario es Coordinador
+    if (finalFilters.stationId && finalFilters.stationId !== '') {
+        constraints.push(where("stationId", "==", finalFilters.stationId));
+    }
+
+    // 3. Filtro de Método de Pago (FIX: SOLO aplicar si no es cadena vacía)
+    if (finalFilters.paymentMethod && finalFilters.paymentMethod !== '') {
+        constraints.push(where("paymentMethod", "==", finalFilters.paymentMethod));
+    }
+    
+    // 4. Filtros de Fecha (Siempre van antes de la ordenación si son where)
     if (finalFilters.startDate) {
         constraints.push(where("date", ">=", Timestamp.fromDate(finalFilters.startDate)));
     }
     if (finalFilters.endDate) {
         const end = new Date(finalFilters.endDate);
-        // Aseguramos que la fecha final incluya todo el día
         end.setHours(23, 59, 59, 999); 
         constraints.push(where("date", "<=", Timestamp.fromDate(end)));
     }
-
-    // 3. Filtros de Estación/Método de Pago
-    if (finalFilters.stationId) {
-        constraints.push(where("stationId", "==", finalFilters.stationId));
-    }
-    if (finalFilters.paymentMethod) {
-        constraints.push(where("paymentMethod", "==", finalFilters.paymentMethod));
-    }
-
+    
+    // 5. Ordenación (Siempre va al final)
+    constraints.push(orderBy("date", "desc"));
+    
     try {
-        // Limite de 1000 resultados para evitar sobrecargar
         const q = query(salesCol, ...constraints, limit(1000)); 
         const snapshot = await getDocs(q);
         
-        // Retornamos directamente los documentos ya que los filtros en memoria fueron eliminados.
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 
     } catch (error: any) {
         console.error("Error historial:", error);
-        // Fallback en caso de error de índice no encontrado
         if (error.code === 'failed-precondition') {
              console.warn("Falta índice compuesto. Fallback a últimas 50 ventas...");
              const fallbackQ = query(salesCol, orderBy("date", "desc"), limit(50));
