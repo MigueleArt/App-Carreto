@@ -4,7 +4,7 @@ import { getSalesHistory, getStations } from '../../../services/adminService';
 import { FilterInput } from '../components/FilterInput';
 import { ROLES } from '../../constants/roles'; // Importación de constantes
 import { DocumentTextIcon } from '../../Icons'; // Icono para el botón "Ver Ticket"
-import { TicketModal } from '../../modals/TicketModal';
+import { TicketModal } from '../../modals/TicketModal2';
 const SalesHistorySection = ({ session, showNotification }: any) => {
     const [sales, setSales] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);

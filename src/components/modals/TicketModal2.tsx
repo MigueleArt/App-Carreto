@@ -45,7 +45,6 @@ export const TicketModal = ({ receipt, onClose }) => {
                         <span>Subtotal:</span>
                         <span>${receipt.subtotal.toFixed(2)}</span>
                     </div>
-                    {/**/}
                      {receipt.discount > 0 && (
                         <div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400 text-xs"> {/* Reducido tamaño fuente */}
                             <span>Descuento ({receipt.redeemedPoints} Pts):</span>
@@ -57,6 +56,7 @@ export const TicketModal = ({ receipt, onClose }) => {
                         <span>${receipt.total.toFixed(2)}</span>
                     </div>
                 </div>
+                
                  {/* Muestra resumen de puntos solo si hubo cliente */}
                  {receipt.customerId && (
                     <div className="p-4 border-t border-dashed border-gray-300 dark:border-gray-600 text-xs space-y-1"> {/* Reducido tamaño fuente */}
@@ -72,7 +72,7 @@ export const TicketModal = ({ receipt, onClose }) => {
                         <PrinterIcon className="w-4 h-4" /> Imprimir
                     </button>
                     <button onClick={onClose} className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"> {/* Reducido padding y tamaño fuente */}
-                        Nueva Venta
+                        Cerrar
                     </button>
                 </div>
             </div>
