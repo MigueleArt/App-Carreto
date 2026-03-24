@@ -222,7 +222,7 @@ export default function POSScreen({ customer, onBack, showNotification, session 
   return (
     <>
       {/* El modal del ticket (sólo se muestra DESPUÉS de un pago exitoso) */}
-      {saleReceipt && <TicketModal receipt={saleReceipt} onClose={handleCloseTicket} />}
+      {saleReceipt && <TicketModal receipt={saleReceipt} onClose={handleCloseTicket} onChangeCustomer={onBack} />}
 
       {/* Modal de error de terminal con opciones de recuperación */}
       {terminalError.show && (

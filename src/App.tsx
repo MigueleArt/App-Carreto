@@ -212,7 +212,7 @@ export default function App(): React.ReactNode {
               <p className="text-gray-500">Cargando sesión...</p>
             </div>
           ) : view === 'login' ? (
-            <LoginScreen onLogin={handleLogin} />
+            <LoginScreen onLogin={handleLogin} onBack={handleBackToHome} />
           ) : (
             renderViewContent()
           )}

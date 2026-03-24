@@ -11,9 +11,10 @@ interface LoginScreenProps {
   // Esta función debe manejar la lógica de Firebase Auth
   // y lanzar un error si el login falla.
   onLogin: (email: string, password: string) => Promise<void>;
+  onBack?: () => void;
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps): React.ReactNode {
+export default function LoginScreen({ onLogin, onBack }: LoginScreenProps): React.ReactNode {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +26,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps): React.ReactN
       setError('Por favor, ingrese correo y contraseña.');
       return;
     }
-    
+
     setIsLoading(true);
     setError(null); // Limpiar errores previos
 
@@ -37,7 +38,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps): React.ReactN
     } catch (authError: any) {
       // Capturamos el error de Firebase y mostramos un mensaje amigable
       let friendlyMessage = 'Error al iniciar sesión. Intente de nuevo.';
-      
+
       // Códigos comunes de error de Firebase Auth
       if (authError.code) {
         switch (authError.code) {
@@ -62,12 +63,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps): React.ReactN
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-8 text-center animate-fade-in w-full max-w-md mx-auto">
-      
+
       <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-200">Acceso de Operador</h2>
       <p className="text-gray-500 dark:text-gray-400 mt-2">Ingrese sus credenciales para continuar.</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-        
+
         {/* Campo de Email */}
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left mb-1">
@@ -135,6 +136,19 @@ export default function LoginScreen({ onLogin }: LoginScreenProps): React.ReactN
           )}
         </button>
       </form>
+
+      {/* Botón para volver al menú principal */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="mt-4 w-full flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium py-3 rounded-xl transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+          Volver al menú
+        </button>
+      )}
     </div>
   );
 }
