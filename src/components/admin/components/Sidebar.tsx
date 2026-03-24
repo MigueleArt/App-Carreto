@@ -7,7 +7,7 @@ import { SessionData } from '../../../types'; // Asegúrate de tener este archiv
 // Importaciones de iconos (asumiendo que los moviste a un archivo central de Iconos)
 import { 
     ChartBarIcon, UsersIcon, BuildingOfficeIcon, CogIcon, ArrowLeftIcon, 
-    DocumentTextIcon 
+    DocumentTextIcon, TerminalIcon 
 } from '../../Icons'; 
 
 interface SidebarProps {
@@ -22,13 +22,15 @@ const Sidebar: React.FC<SidebarProps> = ({ session, activeSection, onSectionChan
 
     const canSeeUsers = session.role === ROLES.SUPER_ADMIN || session.role === ROLES.ADMIN || session.role === ROLES.COORDINADOR;
     const canSeeStations = session.role === ROLES.SUPER_ADMIN || session.role === ROLES.ADMIN;
-    const canSeePrices = session.role === ROLES.SUPER_ADMIN || session.role === ROLES.ADMIN; 
+    const canSeePrices = session.role === ROLES.SUPER_ADMIN || session.role === ROLES.ADMIN;
+    const canSeeTerminals = session.role === ROLES.SUPER_ADMIN || session.role === ROLES.ADMIN;
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: ChartBarIcon, visible: true },
         { id: 'historial', label: 'Historial', icon: DocumentTextIcon, visible: true },
         { id: 'usuarios', label: 'Usuarios', icon: UsersIcon, visible: canSeeUsers },
         { id: 'estaciones', label: 'Estaciones', icon: BuildingOfficeIcon, visible: canSeeStations },
+        { id: 'terminales', label: 'Terminales', icon: TerminalIcon, visible: canSeeTerminals },
         { id: 'precios', label: 'Configuración', icon: CogIcon, visible: canSeePrices },
     ];
 

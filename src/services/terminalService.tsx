@@ -2,25 +2,11 @@
  * terminalService.tsx
  * Comunicación con PAX A920 Pro (Banorte)
  *
- * MVP: Configuración hardcodeada.
- * TODO: Para despliegue final, mover estos valores a Firestore o .env
- * y cargar dinámicamente por gasolinera.
+ * La configuración de cada terminal se carga dinámicamente desde Firestore
+ * (colección "terminalConfig"), donde cada documento tiene el ID de la estación.
  */
 
-// --- Configuración de la Terminal ---
-// En producción, estos valores vendrán de Firestore o un .env local.
-const TERMINAL_CONFIG = {
-    ip: "192.168.100.135",
-    port: "1818",
-    timeout: 65000, // 65 segundos: tiempo suficiente para que el cliente pase la tarjeta
-};
-
-const MERCHANT_CONFIG = {
-    affiliation: "7884666",
-    user: "USUARIO",
-    password: "PASSWORD",
-    mode: "AUT",
-};
+import { getTerminalConfigByStation, TerminalConfig } from './adminService';
 
 // --- Tipos ---
 export interface TerminalResponse {
@@ -32,6 +18,9 @@ export interface TerminalResponse {
     isBlindSuccess?: boolean;
 }
 
+// Timeout para la transacción (65 segundos: tiempo para que el cliente pase la tarjeta)
+const TRANSACTION_TIMEOUT = 65000;
+
 // --- Comunicación con la Terminal ---
 
 /**
@@ -40,19 +29,19 @@ export interface TerminalResponse {
  * "blind success" — asumiendo que el comando se envió correctamente
  * pero el protocolo de respuesta no es parseable por el browser.
  *
- * En el entorno final (Electron + proxy Node), el proxy se encargará
- * de normalizar las respuestas y este fallback no será necesario.
+ * En el APK nativo (Capacitor), CapacitorHttp intercepta el fetch()
+ * automáticamente, eliminando las restricciones de CORS y mixed content.
  */
-async function sendCommand(payload: any): Promise<TerminalResponse> {
+async function sendCommand(config: TerminalConfig, payload: any): Promise<TerminalResponse> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TERMINAL_CONFIG.timeout);
+    const timeoutId = setTimeout(() => controller.abort(), TRANSACTION_TIMEOUT);
 
     // Registrar el momento de inicio para distinguir errores de conexión vs. protocolo
     const startTime = Date.now();
 
     try {
-        const url = `http://${TERMINAL_CONFIG.ip}:${TERMINAL_CONFIG.port}/`;
-        console.log(`[Terminal] Enviando comando: ${payload.CMD_TRANS}, Monto: $${payload.MONTO || 'N/A'}`);
+        const url = `http://${config.ip}:${config.port}/`;
+        console.log(`[Terminal] Enviando a ${config.ip}:${config.port} — Comando: ${payload.CMD_TRANS}, Monto: $${payload.MONTO || 'N/A'}`);
 
         const response = await fetch(url, {
             method: "POST",
@@ -96,7 +85,7 @@ async function sendCommand(payload: any): Promise<TerminalResponse> {
 
         // Timeout por AbortController (nuestro timeout de 65s)
         if (error.name === "AbortError") {
-            console.warn("[Terminal] Timeout: no se completó en", TERMINAL_CONFIG.timeout / 1000, "segundos.");
+            console.warn("[Terminal] Timeout: no se completó en", TRANSACTION_TIMEOUT / 1000, "segundos.");
             return {
                 success: false,
                 message: "Tiempo agotado. El cliente no completó el pago en la terminal.",
@@ -105,20 +94,10 @@ async function sendCommand(payload: any): Promise<TerminalResponse> {
             };
         }
 
-        // Distinguir entre terminal inalcanzable vs. respuesta no estándar:
-        //
-        // - ERR_CONNECTION_TIMED_OUT / ERR_CONNECTION_REFUSED: la conexión TCP
-        //   nunca se estableció → la terminal no está en la red. Estos errores
-        //   tardan 10+ segundos (timeout de red del SO/browser).
-        //
-        // - ERR_INVALID_HTTP_RESPONSE: la conexión TCP SÍ se estableció y la
-        //   terminal procesó el comando, pero respondió con protocolo no estándar.
-        //   Esto ocurre rápido (< 10 segundos).
-        //
+        // Distinguir entre terminal inalcanzable vs. respuesta no estándar
         const CONNECTION_THRESHOLD_MS = 10000; // 10 segundos
 
         if (elapsedMs >= CONNECTION_THRESHOLD_MS) {
-            // Tardó mucho → la terminal no responde / no está en la red
             console.error(`[Terminal] Terminal inalcanzable (${(elapsedMs / 1000).toFixed(1)}s):`, error.message);
             return {
                 success: false,
@@ -129,7 +108,6 @@ async function sendCommand(payload: any): Promise<TerminalResponse> {
         }
 
         // Falló rápido → la conexión sí se hizo, pero la respuesta no es HTTP válido.
-        // Esto es el escenario de "blind success" — el comando SÍ llegó a la terminal.
         console.warn(`[Terminal] Protocolo no estándar detectado (${elapsedMs}ms):`, error.message);
         console.warn("[Terminal] El comando fue enviado. Verificar voucher de la terminal.");
 
@@ -147,20 +125,57 @@ async function sendCommand(payload: any): Promise<TerminalResponse> {
 
 /**
  * Procesa un pago con tarjeta a través de la terminal Banorte.
+ * Carga la configuración de la terminal desde Firestore según la estación.
+ * 
  * @param amount - Monto a cobrar
  * @param folio - Número de control / folio de la venta
+ * @param stationId - ID de la estación para cargar su configuración de terminal
  */
-export const processTerminalPayment = (
+export const processTerminalPayment = async (
     amount: number,
-    folio: string
-): Promise<TerminalResponse> =>
-    sendCommand({
+    folio: string,
+    stationId: string
+): Promise<TerminalResponse> => {
+    // 1. Cargar configuración de terminal desde Firestore
+    const config = await getTerminalConfigByStation(stationId);
+
+    if (!config) {
+        return {
+            success: false,
+            message: "Esta estación no tiene una terminal configurada. Configure la terminal desde el panel de administración.",
+            authCode: "",
+            reference: "",
+        };
+    }
+
+    if (!config.isActive) {
+        return {
+            success: false,
+            message: "La terminal de esta estación está desactivada. Actívela desde el panel de administración.",
+            authCode: "",
+            reference: "",
+        };
+    }
+
+    if (!config.ip || !config.ip.trim()) {
+        return {
+            success: false,
+            message: "La terminal no tiene una dirección IP configurada. Configúrela desde el panel de administración.",
+            authCode: "",
+            reference: "",
+        };
+    }
+
+    // 2. Enviar comando de venta
+    return sendCommand(config, {
         CMD_TRANS: "VENTA",
-        ID_AFILIACION: MERCHANT_CONFIG.affiliation,
-        USUARIO: MERCHANT_CONFIG.user,
-        CLAVE_USR: MERCHANT_CONFIG.password,
-        MODO: MERCHANT_CONFIG.mode,
+        ID_AFILIACION: config.affiliation,
+        USUARIO: config.user,
+        CLAVE_USR: config.password,
+        MODO: config.mode,
         MONTO: amount.toFixed(2),
         NUMERO_CONTROL: folio,
         ID_TERMINAL: "A920PRO",
     });
+};
+

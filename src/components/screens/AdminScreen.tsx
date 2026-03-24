@@ -10,6 +10,7 @@ import UserManagementSection from '../admin/sections/UserManagementSection';
 import StationManagementSection from '../admin/sections/StationManagementSection';
 import SalesHistorySection from '../admin/sections/SalesHistorySection';
 import PriceAndProductSection from '../admin/sections/PriceAndProductSection';
+import TerminalConfigSection from '../admin/sections/TerminalConfigSection';
 
 interface AdminScreenProps {
     onBack: () => void;
@@ -24,7 +25,7 @@ export default function AdminScreen({ onBack, showNotification, session }: Admin
 
     // Lógica de Redirección RBAC
     useEffect(() => {
-        if (session.role === ROLES.COORDINADOR && (activeSection === 'precios' || activeSection === 'estaciones')) {
+        if (session.role === ROLES.COORDINADOR && (activeSection === 'precios' || activeSection === 'estaciones' || activeSection === 'terminales')) {
             setActiveSection('dashboard');
         }
     }, [session.role, activeSection]);
@@ -41,6 +42,8 @@ export default function AdminScreen({ onBack, showNotification, session }: Admin
                 return <UserManagementSection {...props} />;
             case 'estaciones':
                 return <StationManagementSection showNotification={showNotification} />;
+            case 'terminales':
+                return <TerminalConfigSection showNotification={showNotification} />;
             case 'precios':
                 return <PriceAndProductSection showNotification={showNotification} />;
             default:

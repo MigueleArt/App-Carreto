@@ -417,3 +417,67 @@ export const updateProduct = async (productId: string, productData: Partial<Prod
         throw new Error("Error al actualizar producto.");
     }
 };
+
+// ==========================================
+// 6. CONFIGURACIÓN DE TERMINAL POR ESTACIÓN
+// ==========================================
+
+export interface TerminalConfig {
+    stationId: string;
+    stationName?: string;
+    ip: string;
+    port: string;
+    affiliation: string;
+    user: string;
+    password: string;
+    mode: string;
+    isActive: boolean;
+    lastUpdated?: Date;
+}
+
+/**
+ * Obtiene todas las configuraciones de terminal.
+ */
+export const getAllTerminalConfigs = async (): Promise<TerminalConfig[]> => {
+    const colRef = collection(db, "terminalConfig");
+    try {
+        const snapshot = await getDocs(colRef);
+        return snapshot.docs.map(doc => ({ stationId: doc.id, ...doc.data() } as TerminalConfig));
+    } catch (error) {
+        console.error("Error getAllTerminalConfigs:", error);
+        throw new Error("Error al cargar configuraciones de terminal.");
+    }
+};
+
+/**
+ * Obtiene la configuración de terminal para una estación específica.
+ */
+export const getTerminalConfigByStation = async (stationId: string): Promise<TerminalConfig | null> => {
+    try {
+        const docSnap = await getDoc(doc(db, "terminalConfig", stationId));
+        if (docSnap.exists()) {
+            return { stationId: docSnap.id, ...docSnap.data() } as TerminalConfig;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error getTerminalConfigByStation:", error);
+        return null;
+    }
+};
+
+/**
+ * Guarda o actualiza la configuración de terminal para una estación.
+ * Usa setDoc con merge para crear o actualizar.
+ */
+export const saveTerminalConfig = async (config: TerminalConfig): Promise<void> => {
+    try {
+        const { stationId, ...data } = config;
+        await setDoc(doc(db, "terminalConfig", stationId), {
+            ...data,
+            lastUpdated: new Date(),
+        }, { merge: true });
+    } catch (error) {
+        console.error("Error saveTerminalConfig:", error);
+        throw new Error("Error al guardar configuración de terminal.");
+    }
+};

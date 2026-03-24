@@ -13,9 +13,10 @@ interface POSScreenProps {
   customer: any;
   onBack: () => void;
   showNotification: (msg: string, type: string) => void;
+  session: { stationId: string | null } | null;
 }
 
-export default function POSScreen({ customer, onBack, showNotification }: POSScreenProps) {
+export default function POSScreen({ customer, onBack, showNotification, session }: POSScreenProps) {
   const [internalCustomer, setInternalCustomer] = useState(customer);
   const [isLoading, setIsLoading] = useState(false);
   const [saleReceipt, setSaleReceipt] = useState<any>(null);
@@ -85,7 +86,7 @@ export default function POSScreen({ customer, onBack, showNotification }: POSScr
       switch (paymentMethod) {
         case 'terminal':
           showNotification('🔄 Conectando con la terminal... Esperando respuesta.', 'info');
-          const terminalResult = await processTerminalPayment(total, saleFolio);
+          const terminalResult = await processTerminalPayment(total, saleFolio, session?.stationId || '');
           if (terminalResult.success) {
             paymentSuccess = true;
             if (terminalResult.isBlindSuccess) {
@@ -135,7 +136,7 @@ export default function POSScreen({ customer, onBack, showNotification }: POSScr
         let updatedCustomerData = internalCustomer;
 
         if (internalCustomer) {
-          const pointsEarned = Math.floor(totalForEarning / 10);
+          const pointsEarned = Math.floor(totalForEarning / 100);
           const currentPoints = internalCustomer.points;
           const newPoints = currentPoints - pointsToSpend + pointsEarned;
 

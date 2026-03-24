@@ -51,7 +51,7 @@ export const addPoints = async (phone: string, purchaseAmount: number, pointsToR
     if (!customer) throw new Error('Cliente no encontrado para añadir puntos.');
     
     const customerRef = doc(db, "customers", customer.id);
-    const pointsEarned = Math.floor(purchaseAmount / 10); 
+    const pointsEarned = Math.floor(purchaseAmount / 100); 
     let newTotalPoints = customer.points; 
 
     try { 

@@ -176,7 +176,7 @@ export default function App(): React.ReactNode {
 
       case 'pos':
         if (activeCustomer) {
-          return <POSScreen customer={activeCustomer} onBack={handleBackToHome} showNotification={showNotification} />;
+          return <POSScreen customer={activeCustomer} onBack={handleBackToHome} showNotification={showNotification} session={sessionUser} />;
         }
         setView('home');
         return homeScreen;
