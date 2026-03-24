@@ -1,4 +1,3 @@
-// src/components/screens/AdminScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { SessionData } from '../../types'; 
 // RUTA CORREGIDA FINAL (Asumiendo src/components/constants/roles.ts)
@@ -11,6 +10,11 @@ import StationManagementSection from '../admin/sections/StationManagementSection
 import SalesHistorySection from '../admin/sections/SalesHistorySection';
 import PriceAndProductSection from '../admin/sections/PriceAndProductSection';
 import TerminalConfigSection from '../admin/sections/TerminalConfigSection';
+
+// Nuevas importaciones para Club Pilotos (Deberás crear estos archivos)
+import TiendaSection from '../admin/sections/TiendaSection';
+import PromocionesSection from '../admin/sections/PromocionesSection';
+import NivelesSection from '../admin/sections/NivelesSection';
 
 interface AdminScreenProps {
     onBack: () => void;
@@ -46,6 +50,16 @@ export default function AdminScreen({ onBack, showNotification, session }: Admin
                 return <TerminalConfigSection showNotification={showNotification} />;
             case 'precios':
                 return <PriceAndProductSection showNotification={showNotification} />;
+            
+            // --- Nuevas Rutas de Club Pilotos ---
+            case 'tienda':
+                return <TiendaSection {...props} />;
+            case 'promociones':
+                return <PromocionesSection {...props} />;
+            case 'niveles':
+                return <NivelesSection {...props} />;
+            // ------------------------------------
+
             default:
                 return null;
         }
