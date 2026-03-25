@@ -13,7 +13,7 @@ interface POSScreenProps {
   customer: any;
   onBack: () => void;
   showNotification: (msg: string, type: string) => void;
-  session: { stationId: string | null } | null;
+  session: { stationId: string | null; email?: string | null; name?: string | null } | null;
 }
 
 export default function POSScreen({ customer, onBack, showNotification, session }: POSScreenProps) {
@@ -173,6 +173,9 @@ export default function POSScreen({ customer, onBack, showNotification, session 
           total: finalTotalOnReceipt,
           paymentMethod: paymentMethod,
           points: pointsSummary,
+          sellerEmail: session?.email || null,
+          sellerName: session?.name || null,
+          stationId: session?.stationId || null,
         };
         console.log("[handleProcessPayment] PASO 5: Objeto del ticket construido:", receiptData);
 
@@ -222,7 +225,7 @@ export default function POSScreen({ customer, onBack, showNotification, session 
   return (
     <>
       {/* El modal del ticket (sólo se muestra DESPUÉS de un pago exitoso) */}
-      {saleReceipt && <TicketModal receipt={saleReceipt} onClose={handleCloseTicket} />}
+      {saleReceipt && <TicketModal receipt={saleReceipt} onClose={handleCloseTicket} onChangeCustomer={onBack} />}
 
       {/* Modal de error de terminal con opciones de recuperación */}
       {terminalError.show && (

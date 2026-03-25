@@ -1,8 +1,8 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, deleteApp, getApps } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -20,10 +20,29 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app); // Está bien mantener analytics
+const analytics = getAnalytics(app);
 
-// --- CORRECCIÓN AQUÍ ---
-// Inicializa y exporta los servicios que tu App.tsx necesita
+// --- Servicios principales ---
 export const db = getFirestore(app);
-export const auth = getAuth(app); // <-- Esta es la línea que faltaba
+export const auth = getAuth(app);
 
+/**
+ * Crea un usuario en Firebase Auth usando una instancia secundaria de Firebase.
+ * Esto evita que el admin actual sea deslogueado al llamar createUserWithEmailAndPassword.
+ * 
+ * @returns El UID del usuario creado en Auth
+ */
+export const createAuthUser = async (email: string, password: string): Promise<string> => {
+  // Crear una instancia temporal de Firebase
+  const secondaryApp = initializeApp(firebaseConfig, "auth-worker");
+  const secondaryAuth = getAuth(secondaryApp);
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    const uid = userCredential.user.uid;
+    return uid;
+  } finally {
+    // Siempre eliminar la instancia secundaria
+    await deleteApp(secondaryApp);
+  }
+};
