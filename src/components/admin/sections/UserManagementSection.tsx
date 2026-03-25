@@ -73,7 +73,7 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
                 showNotification("Usuario actualizado.", "success");
             } else {
                 await addUser(userData as UserData);
-                showNotification("Usuario creado (Recuerde: Auth en Firebase).", "success");
+                showNotification("Usuario creado exitosamente.", "success");
             }
             setIsUserModalOpen(false);
             setEditingUser(null);
@@ -85,6 +85,13 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
 
     // Unimos los estados de carga para el botón de "Nuevo Usuario"
     const isReady = !isLoading && !isLoadingStations;
+
+    // Helper para obtener el nombre de la estación por su ID
+    const getStationName = (stationId?: string) => {
+        if (!stationId) return null;
+        const station = stations.find(s => s.id === stationId);
+        return station ? station.name : stationId;
+    };
 
     return (
         <div className="animate-fade-in">
@@ -113,26 +120,28 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
                 </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
                 {isLoading ? <p className="p-10 text-center text-gray-500">Cargando usuarios...</p> : (
-                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700">
+                    <table className="w-full text-xs sm:text-sm text-left text-gray-500 dark:text-gray-400 min-w-[540px]">
+                        <thead className="text-[10px] sm:text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700">
                             <tr>
-                                <th className="py-4 px-6">Email</th>
-                                <th className="py-4 px-6">Rol</th>
-                                <th className="py-4 px-6">Estación Asignada</th>
-                                <th className="py-4 px-6 text-right">Acciones</th>
+                                <th className="py-3 px-3 sm:px-6">Nombre</th>
+                                <th className="py-3 px-3 sm:px-6">Email</th>
+                                <th className="py-3 px-3 sm:px-6">Rol</th>
+                                <th className="py-3 px-3 sm:px-6">Estación</th>
+                                <th className="py-3 px-3 sm:px-6 text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {users.length === 0 && (
-                                <tr><td colSpan={4} className="py-8 text-center text-gray-400">No se encontraron usuarios bajo su supervisión.</td></tr>
+                                <tr><td colSpan={5} className="py-8 text-center text-gray-400">No se encontraron usuarios bajo su supervisión.</td></tr>
                             )}
                             {users.map(user => (
                                 <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    <td className="py-4 px-6 font-medium text-gray-900 dark:text-white">{user.email}</td>
-                                    <td className="py-4 px-6">
-                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold 
+                                    <td className="py-3 px-3 sm:px-6 font-medium text-gray-900 dark:text-white whitespace-nowrap">{user.name || <span className="text-gray-300 italic">Sin nombre</span>}</td>
+                                    <td className="py-3 px-3 sm:px-6 text-gray-500 truncate max-w-[150px] sm:max-w-none">{user.email}</td>
+                                    <td className="py-3 px-3 sm:px-6">
+                                        <span className={`px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold whitespace-nowrap
                                             ${user.role === ROLES.SUPER_ADMIN ? 'bg-purple-100 text-purple-800' : 
                                                 user.role === ROLES.ADMIN ? 'bg-blue-100 text-blue-800' :
                                                 user.role === ROLES.COORDINADOR ? 'bg-orange-100 text-orange-800' : 
@@ -140,12 +149,12 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
                                             {user.role}
                                         </span>
                                     </td>
-                                    <td className="py-4 px-6 text-gray-500">{user.stationId || <span className="text-gray-300 italic">Global</span>}</td>
-                                    <td className="py-4 px-6 text-right">
+                                    <td className="py-3 px-3 sm:px-6 text-gray-500 whitespace-nowrap">{getStationName(user.stationId) || <span className="text-gray-300 italic">Global</span>}</td>
+                                    <td className="py-3 px-3 sm:px-6 text-right">
                                         {(session.role === ROLES.ADMIN && user.role === ROLES.SUPER_ADMIN) ? (
                                             <span className="text-xs text-gray-300 cursor-not-allowed">Protegido</span>
                                         ) : (
-                                            <button onClick={() => handleEdit(user)} className="text-blue-600 hover:text-blue-800 font-medium hover:underline">Editar</button>
+                                            <button onClick={() => handleEdit(user)} className="text-blue-600 hover:text-blue-800 font-medium hover:underline text-xs sm:text-sm">Editar</button>
                                         )}
                                     </td>
                                 </tr>

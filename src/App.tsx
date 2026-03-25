@@ -21,13 +21,8 @@ import AdminScreen from './components/screens/AdminScreen';
 import NotificationBanner from './components/NotificationBanner';
 import LoginScreen from './components/screens/LoginScreen';
 
-// --- Interfaz de Sesión ---
-interface SessionData {
-  uid: string;
-  email: string | null;
-  role: string;
-  stationId: string | null;
-}
+// --- Tipo de Sesión (importado desde types.ts) ---
+import { SessionData } from './types';
 
 export default function App(): React.ReactNode {
   // --- Estados ---
@@ -69,6 +64,7 @@ export default function App(): React.ReactNode {
 
             const session: SessionData = {
               uid: user.uid,
+              name: userData.name || null,
               email: user.email,
               role: userData.role || 'Despachador',
               stationId: userData.stationId || null

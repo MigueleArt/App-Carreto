@@ -16,6 +16,7 @@ export interface Notification {
 
 export interface SessionData {
     uid: string;
+    name?: string | null;
     email: string | null;
     role: string;
     stationId: string | null;
@@ -23,6 +24,7 @@ export interface SessionData {
 
 export interface UserData {
     id?: string;
+    name?: string;
     email: string;
     role: string;
     stationId?: string;
