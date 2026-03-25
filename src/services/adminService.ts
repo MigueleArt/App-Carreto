@@ -1,4 +1,4 @@
-import { db } from '../firebaseConfig';
+import { db, createAuthUser } from '../firebaseConfig';
 import {
     doc, getDoc, setDoc, collection, getDocs, addDoc, updateDoc,
     query, where, orderBy, Timestamp, limit,
@@ -14,6 +14,7 @@ export interface GasPrices {
 
 export interface UserData {
     id?: string;
+    name?: string;
     email: string;
     role: string;
     stationId?: string;
@@ -97,19 +98,43 @@ export const getUsers = async (): Promise<UserData[]> => {
     }
 };
 
-export const addUser = async (userData: UserData): Promise<void> => {
+export const addUser = async (userData: UserData & { password?: string }): Promise<void> => {
+    const email = userData.email.toLowerCase();
+    const password = userData.password;
+
+    // 1. Crear credenciales en Firebase Auth (si se proporcionó contraseña)
+    if (password) {
+        try {
+            await createAuthUser(email, password);
+            console.log(`[addUser] Credenciales Auth creadas para: ${email}`);
+        } catch (authError: any) {
+            console.error("Error creando Auth:", authError);
+            // Traducir errores comunes de Firebase Auth
+            if (authError.code === 'auth/email-already-in-use') {
+                throw new Error('Este correo ya tiene credenciales en Firebase Auth.');
+            } else if (authError.code === 'auth/weak-password') {
+                throw new Error('La contraseña es muy débil. Use al menos 6 caracteres.');
+            } else if (authError.code === 'auth/invalid-email') {
+                throw new Error('El formato del correo no es válido.');
+            }
+            throw new Error(`Error al crear credenciales: ${authError.message}`);
+        }
+    }
+
+    // 2. Crear perfil en Firestore (sin la contraseña)
     const usersColRef = collection(db, "users");
     try {
-        // Guarda el email en minúsculas para asegurar la búsqueda por email en App.tsx
+        const { password: _, ...userDataWithoutPassword } = userData as any;
         const dataToSave = {
-            ...userData,
-            email: userData.email.toLowerCase(),
+            ...userDataWithoutPassword,
+            email,
             createdAt: new Date()
         };
         await addDoc(usersColRef, dataToSave);
+        console.log(`[addUser] Perfil Firestore creado para: ${email}`);
     } catch (error) {
-        console.error("Error addUser:", error);
-        throw new Error("Error al crear usuario.");
+        console.error("Error addUser Firestore:", error);
+        throw new Error("Credenciales creadas pero error al guardar perfil. Contacte al administrador.");
     }
 };
 
@@ -314,6 +339,11 @@ export const getSalesHistoryPaginated = async (
         constraints.push(where("paymentMethod", "==", finalFilters.paymentMethod));
     }
 
+    // 3b. Filtro de Vendedor (sellerEmail)
+    if (finalFilters.sellerEmail && finalFilters.sellerEmail !== '') {
+        constraints.push(where("sellerEmail", "==", finalFilters.sellerEmail));
+    }
+
     // 4. Filtros de Fecha
     if (finalFilters.startDate) {
         constraints.push(where("date", ">=", Timestamp.fromDate(finalFilters.startDate)));
@@ -359,15 +389,30 @@ export const getSalesHistoryPaginated = async (
     } catch (error: any) {
         console.error("Error historial paginado:", error);
         if (error.code === 'failed-precondition') {
-            console.warn("Falta índice compuesto. Fallback a últimas 20 ventas...");
-            const fallbackQ = query(salesCol, orderBy("date", "desc"), limit(pageSize));
+            console.warn("Falta índice compuesto. Aplicando filtros del lado del cliente...");
+            // Cargar datos sin filtros complejos y filtrar en el cliente
+            const fallbackQ = query(salesCol, orderBy("date", "desc"), limit(500));
             const snap = await getDocs(fallbackQ);
-            const sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            let allSales = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+            // Aplicar filtros del lado del cliente
+            if (finalFilters.sellerEmail && finalFilters.sellerEmail !== '') {
+                allSales = allSales.filter((s: any) => s.sellerEmail === finalFilters.sellerEmail);
+            }
+            if (finalFilters.stationId && finalFilters.stationId !== '') {
+                allSales = allSales.filter((s: any) => s.stationId === finalFilters.stationId);
+            }
+            if (finalFilters.paymentMethod && finalFilters.paymentMethod !== '') {
+                allSales = allSales.filter((s: any) => s.paymentMethod === finalFilters.paymentMethod);
+            }
+
+            // Paginar resultado
+            const paginatedSales = allSales.slice(0, pageSize);
             return {
-                sales,
+                sales: paginatedSales,
                 firstDoc: snap.docs[0] || null,
                 lastDoc: snap.docs[snap.docs.length - 1] || null,
-                totalCount: sales.length
+                totalCount: allSales.length
             };
         }
         throw new Error("Error al cargar historial.");

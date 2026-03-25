@@ -49,7 +49,7 @@ const DashboardSection: React.FC<DashboardSectionProps> = ({ session, showNotifi
     return (
         <div className="animate-fade-in">
             <div className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Dashboard Operativo</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">Dashboard Operativo</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">
                     Vista general para <span className="font-semibold text-emerald-600 dark:text-emerald-400">{session.role}</span>
                     {session.stationId && <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">Estación: {session.stationId}</span>}
@@ -61,9 +61,9 @@ const DashboardSection: React.FC<DashboardSectionProps> = ({ session, showNotifi
 
                     {/* --- 1. FACTURACIÓN TOTAL (KPI PRINCIPAL Y GRANDE) --- */}
                     <div className="w-full">
-                        <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl border-l-4 border-indigo-500 transition-all">
-                            <dt className="text-lg font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">FACTURACIÓN TOTAL HISTÓRICA</dt>
-                            <dd className="text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+                        <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl border-l-4 border-indigo-500 transition-all">
+                            <dt className="text-sm md:text-lg font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">FACTURACIÓN TOTAL HISTÓRICA</dt>
+                            <dd className="text-4xl md:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white break-all">
                                 {totalRevenueFormatted}
                             </dd>
                             <p className="text-sm text-gray-500 mt-1">Acumulado desde el inicio de operaciones.</p>
@@ -90,8 +90,9 @@ const DashboardSection: React.FC<DashboardSectionProps> = ({ session, showNotifi
                     <h3 className="text-xl font-bold text-gray-800 dark:text-white pt-4 border-t border-gray-200 dark:border-gray-700">Métricas Diarias</h3>
 
                     {/* --- 2. DISEÑO DE MÉTRICAS DIARIAS (3 Columnas) --- */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                        
                         {/* VENTAS DE HOY */}
                         <KpiCard
                             title="Ventas de Hoy"
