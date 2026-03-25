@@ -4,6 +4,7 @@ export interface Customer {
   name: string;
   phone: string; // WhatsApp number, used for searching
   points: number;
+  
 }
 
 export type View = 'home' | 'register' | 'customer';

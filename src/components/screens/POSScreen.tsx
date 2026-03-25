@@ -59,6 +59,7 @@ export default function POSScreen({ customer, onBack, showNotification, session 
   const handleCloseTicket = () => {
     setSaleReceipt(null);
     resetCart();
+    onBack(); // <-- ESTA LÍNEA ES LA SOLUCIÓN: Cierra el ticket y te regresa a la pantalla principal
   };
 
   // Lógica principal de procesamiento de pago
@@ -222,7 +223,8 @@ export default function POSScreen({ customer, onBack, showNotification, session 
   return (
     <>
       {/* El modal del ticket (sólo se muestra DESPUÉS de un pago exitoso) */}
-      {saleReceipt && <TicketModal receipt={saleReceipt} onClose={handleCloseTicket} />}
+      {/* También pasamos onGoToHome por seguridad, aunque onBack ya se llama desde handleCloseTicket */}
+      {saleReceipt && <TicketModal receipt={saleReceipt} onClose={handleCloseTicket} onGoToHome={onBack} />}
 
       {/* Modal de error de terminal con opciones de recuperación */}
       {terminalError.show && (

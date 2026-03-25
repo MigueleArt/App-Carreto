@@ -1,7 +1,7 @@
 // src/components/admin/sections/DashboardSection.tsx
 import React, { useState, useEffect } from 'react';
 // AÑADIDO: Ahora importamos getHistoricalTotals desde el servicio
-import { getDashboardSummary, getHistoricalTotals } from '../../../services/adminService'; 
+import { getDashboardSummary, getHistoricalTotals } from '../../../services/adminService';
 import { KpiCard } from '../components/KpiCard';
 import { SessionData } from '../../../types';
 import { ChartBarIcon, DocumentTextIcon, UsersIcon, BuildingOfficeIcon } from '../../Icons';
@@ -13,7 +13,7 @@ interface DashboardSectionProps {
 
 const DashboardSection: React.FC<DashboardSectionProps> = ({ session, showNotification }) => {
     // summary contiene: totalRevenue (hoy), totalSalesCount (hoy), totalPointsRedeemed (hoy)
-    const [summary, setSummary] = useState<any>(null); 
+    const [summary, setSummary] = useState<any>(null);
     const [totalRevenue, setTotalRevenue] = useState<number | null>(0); // Total Histórico (Revenue)
     const [totalSalesCountHist, setTotalSalesCountHist] = useState<number | null>(0); // Total Histórico (Transacciones)
     const [totalPointsRedeemedHist, setTotalPointsRedeemedHist] = useState<number | null>(0); // Total Histórico (Puntos)
@@ -29,11 +29,11 @@ const DashboardSection: React.FC<DashboardSectionProps> = ({ session, showNotifi
 
                 // 2. OBTENER TOTALES HISTÓRICOS REALES (Requiere implementación en adminService.ts)
                 const historicalData = await getHistoricalTotals(session);
-                
+
                 setTotalRevenue(historicalData.totalRevenue);
                 setTotalSalesCountHist(historicalData.totalSalesCount);
                 setTotalPointsRedeemedHist(historicalData.totalPointsRedeemed);
-                
+
             } catch (error: any) {
                 // Muestra el error si la conexión falla o el índice no existe
                 showNotification(`Error al cargar datos del Dashboard: ${error.message}`, 'error');
@@ -58,7 +58,7 @@ const DashboardSection: React.FC<DashboardSectionProps> = ({ session, showNotifi
 
             {isLoading ? <p className="text-gray-500 text-center py-10">Sincronizando datos...</p> : summary && (
                 <div className="space-y-6">
-                    
+
                     {/* --- 1. FACTURACIÓN TOTAL (KPI PRINCIPAL Y GRANDE) --- */}
                     <div className="w-full">
                         <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl border-l-4 border-indigo-500 transition-all">
@@ -73,46 +73,46 @@ const DashboardSection: React.FC<DashboardSectionProps> = ({ session, showNotifi
                     {/* --- 1.5. TOTALES HISTÓRICOS ADICIONALES --- */}
                     <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Totales Acumulados</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <KpiCard 
-                            title="Transacciones Históricas" 
-                            value={(totalSalesCountHist || 0).toLocaleString()} 
-                            icon={<DocumentTextIcon className="w-6 h-6" />} 
+                        <KpiCard
+                            title="Transacciones Históricas"
+                            value={(totalSalesCountHist || 0).toLocaleString()}
+                            icon={<DocumentTextIcon className="w-6 h-6" />}
                             colorClass="purple"
                         />
-                         <KpiCard 
-                            title="Puntos Emitidos Totales" 
-                            value={(totalPointsRedeemedHist || 0).toLocaleString()} 
-                            icon={<UsersIcon className="w-6 h-6" />} 
+                        <KpiCard
+                            title="Puntos Emitidos Totales"
+                            value={(totalPointsRedeemedHist || 0).toLocaleString()}
+                            icon={<UsersIcon className="w-6 h-6" />}
                             colorClass="pink"
                         />
                     </div>
 
                     <h3 className="text-xl font-bold text-gray-800 dark:text-white pt-4 border-t border-gray-200 dark:border-gray-700">Métricas Diarias</h3>
-                    
+
                     {/* --- 2. DISEÑO DE MÉTRICAS DIARIAS (3 Columnas) --- */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        
+
                         {/* VENTAS DE HOY */}
-                        <KpiCard 
-                            title="Ventas de Hoy" 
-                            value={`$${summary.totalRevenue.toFixed(2)}`} 
-                            icon={<ChartBarIcon className="w-6 h-6" />} 
+                        <KpiCard
+                            title="Ventas de Hoy"
+                            value={`$${summary.totalRevenue.toFixed(2)}`}
+                            icon={<ChartBarIcon className="w-6 h-6" />}
                             colorClass="emerald"
                         />
-                        
+
                         {/* TRANSACCIONES HOY */}
-                        <KpiCard 
-                            title="Transacciones Hoy" 
-                            value={summary.totalSalesCount.toLocaleString()} 
-                            icon={<DocumentTextIcon className="w-6 h-6" />} 
+                        <KpiCard
+                            title="Transacciones Hoy"
+                            value={summary.totalSalesCount.toLocaleString()}
+                            icon={<DocumentTextIcon className="w-6 h-6" />}
                             colorClass="yellow"
                         />
-                        
+
                         {/* PUNTOS CANJEADOS HOY */}
-                        <KpiCard 
-                            title="Puntos Canjeados" 
-                            value={summary.totalPointsRedeemed.toLocaleString()} 
-                            icon={<UsersIcon className="w-6 h-6" />} 
+                        <KpiCard
+                            title="Puntos Canjeados"
+                            value={summary.totalPointsRedeemed.toLocaleString()}
+                            icon={<UsersIcon className="w-6 h-6" />}
                             colorClass="blue"
                         />
                     </div>
