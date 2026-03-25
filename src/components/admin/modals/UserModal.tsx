@@ -13,9 +13,11 @@ interface UserModalProps {
 }
 
 const UserModal: React.FC<UserModalProps> = ({ user, stations, onClose, onSave, showNotification, session }) => {
+    const [name, setName] = useState(user?.name || '');
     const [email, setEmail] = useState(user?.email || '');
     const [role, setRole] = useState(user?.role || ROLES.DESPACHADOR);
     const [stationId, setStationId] = useState(user?.stationId || '');
+    const [password, setPassword] = useState('');
 
     // Lógica de permisos en el Modal
     const canAssignRole = (targetRole: string) => {
@@ -60,7 +62,15 @@ const UserModal: React.FC<UserModalProps> = ({ user, stations, onClose, onSave, 
             return;
         }
 
-        onSave({ email, role, stationId });
+        // Validación de contraseña al crear
+        if (!user && (!password || password.length < 6)) {
+            showNotification("La contraseña debe tener al menos 6 caracteres.", "error");
+            return;
+        }
+
+        const saveData: any = { name, email, role, stationId };
+        if (!user) saveData.password = password; // Solo enviar password al crear
+        onSave(saveData);
     };
     
     // 4. Determina si el campo de estación debe ser visible
@@ -78,17 +88,39 @@ const UserModal: React.FC<UserModalProps> = ({ user, stations, onClose, onSave, 
                 
                 <div className="p-6 space-y-5">
                     {!user && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-                            <p className="text-xs text-blue-700 dark:text-blue-300">
-                                <strong>Nota:</strong> Esto crea el perfil en base de datos. Recuerde crear las credenciales en <em>Firebase Auth</em>.
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                            <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                                <strong>✓</strong> Las credenciales de inicio de sesión se crearán automáticamente.
                             </p>
                         </div>
                     )}
-                    
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre Completo</label>
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del usuario" className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo Electrónico</label>
                         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@carreto.com" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                     </div>
+
+                    {/* Campo de contraseña - solo al crear */}
+                    {!user && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Mínimo 6 caracteres"
+                                required
+                                minLength={6}
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Esta será la contraseña de inicio de sesión del usuario.</p>
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rol</label>
