@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { GasPumpIcon, CameraIcon } from '../Icons'; 
-import { searchProducts } from '../../services/productService';
+// Importamos la nueva función getActiveProducts
+import { searchProducts, getActiveProducts } from '../../services/productService';
 import { getGasPrices } from '../../services/adminService';
 
 // Icono simple para el botón de intercambio
@@ -31,15 +32,21 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
   const [inputMode, setInputMode] = useState<'pesos' | 'litros'>('pesos');
 
   const [productSearch, setProductSearch] = useState('');
+  
+  // ESTADOS DE PRODUCTOS
+  const [defaultProducts, setDefaultProducts] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   const [gasPrices, setGasPrices] = useState({ magnaPrice: 0, premiumPrice: 0, dieselPrice: 0 });
   const [pricesLoading, setPricesLoading] = useState(true);
 
-  // --- Carga de Precios ---
+  // --- Carga Inicial de Precios y Productos ---
   useEffect(() => {
-    const fetchGasPrices = async () => {
+    const fetchInitialData = async () => {
         setPricesLoading(true); 
         try {
+            // Cargar precios de gasolina
             const fetchedPrices = await getGasPrices(); 
             if (fetchedPrices) {
                 setGasPrices({
@@ -50,13 +57,18 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
             } else {
                  showNotification('Error: No se encontró configuración de precios.', 'error');
             }
+
+            // Cargar productos por defecto
+            const defaultProds = await getActiveProducts();
+            setDefaultProducts(defaultProds);
+
         } catch (error: any) {
-            showNotification(`Error al cargar precios: ${error.message}`, 'error');
+            showNotification(`Error al cargar datos iniciales: ${error.message}`, 'error');
         } finally {
             setPricesLoading(false); 
         }
     };
-    fetchGasPrices(); 
+    fetchInitialData(); 
   }, [showNotification]); 
 
   // --- Cálculos Dinámicos ---
@@ -85,7 +97,6 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
 
   // --- Handlers ---
 
-  // Función para cambiar modo y limpiar input
   const toggleInputMode = () => {
       setInputMode(prev => prev === 'pesos' ? 'litros' : 'pesos');
       setGasAmount(''); 
@@ -101,7 +112,6 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
     let finalPrice = 0;
     let finalLiters = 0;
 
-    // Lógica para definir precio y litros finales según el modo
     if (inputMode === 'pesos') {
         finalPrice = amountVal;
         finalLiters = amountVal / currentPrice;
@@ -115,31 +125,44 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
     const newItem = {
       id: `gas-${Date.now()}`,
       name: `Gasolina ${fuelName} (${finalLiters.toFixed(2)} Lts)`,
-      price: finalPrice, // El carrito siempre necesita el total en pesos
+      price: finalPrice, 
       type: 'combustible',
     };
 
     onAddGas(newItem);
     setGasAmount('');
+    
+    // Notificación de éxito al agregar combustible
+    showNotification(`Agregado: ${newItem.name}`, 'success');
   };
 
   const handleAddProductClick = (product: any) => {
     onAddProduct({ ...product, id: `prod-${product.id}-${Date.now()}`, type: 'producto' });
+    
+    // Notificación de éxito al agregar producto
+    showNotification(`Agregado: ${product.name} al carrito`, 'success');
   };
 
-  const handleSearch = async () => {
-      if (!productSearch || productSearch.trim() === '') { 
+  // Recibe directamente el valor tipeado para evitar el retraso de React State
+  const handleSearch = async (searchValue: string) => {
+      if (!searchValue || searchValue.trim() === '') { 
           setSearchResults([]); 
           return; 
       }
+      setIsSearching(true);
       try {
-        const results = await searchProducts(productSearch.trim()); 
+        const results = await searchProducts(searchValue.trim()); 
         setSearchResults(results || []); 
       } catch (error: any) {
         showNotification(`Error: ${error.message}`, 'error');
         setSearchResults([]); 
+      } finally {
+        setIsSearching(false);
       }
   };
+
+  // Decidimos qué lista mostrar: Si el buscador está vacío, mostramos los default
+  const displayedProducts = productSearch.trim() === '' ? defaultProducts : searchResults;
 
   return (
     <div className="w-full lg:w-1/2 p-2 lg:p-4 flex flex-col">
@@ -184,10 +207,8 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
                             <div className="flex justify-between items-center mb-2">
                                 <h3 className="font-semibold text-xl text-gray-700 dark:text-gray-200">2. Ingrese Cantidad</h3>
                                 
-                                {/* BOTÓN DE CAMBIO DE MODO - DISEÑO MEJORADO */}
                                 <button 
                                     onClick={toggleInputMode}
-                                    
                                     className="flex items-center gap-2 text-xs font-bold text-gray-200 bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg border border-gray-600 transition-colors shadow-sm"
                                 >
                                     <SwapIcon className="w-4 h-4 text-gray-300" />
@@ -225,15 +246,21 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
                     </div>
                 )}
 
-                {/* --- PESTAÑA PRODUCTOS (Sin Cambios) --- */}
+                {/* --- PESTAÑA PRODUCTOS --- */}
                 {activeTab === 'productos' && (
                     <div className="animate-fade-in">
-                        <h3 className="font-semibold text-xl text-gray-700 dark:text-gray-200">Buscar Productos</h3>
+                        <h3 className="font-semibold text-xl text-gray-700 dark:text-gray-200">
+                            {productSearch.trim() === '' ? 'Catálogo de Productos' : 'Resultados de Búsqueda'}
+                        </h3>
                          <div className="flex gap-2 mt-4">
                             <input
                               type="text"
                               value={productSearch}
-                              onChange={e => {setProductSearch(e.target.value); handleSearch();}} 
+                              onChange={e => {
+                                  const val = e.target.value;
+                                  setProductSearch(val); 
+                                  handleSearch(val); // Enviamos 'val' directo, no el estado que se retrasa
+                              }} 
                               placeholder="Nombre o código de barras..."
                               className="flex-grow text-lg p-3 bg-gray-100 dark:bg-gray-700 border-2 border-transparent focus:ring-emerald-500 focus:border-emerald-500 rounded-lg transition min-w-0"
                             />
@@ -241,14 +268,19 @@ export const CatalogPanel: React.FC<CatalogPanelProps> = ({
                               <CameraIcon className="w-6 h-6"/>
                             </button>
                          </div>
+
+                         {/* Lista de Resultados */}
                          <div className="mt-4 space-y-2 max-h-96 overflow-y-auto pr-2"> 
-                            {searchResults.map(prod => (
-                                <div key={prod.id} onClick={() => handleAddProductClick(prod)} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/50 border border-gray-200 dark:border-gray-700">
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{prod.name}</span>
-                                    <span className="font-bold text-emerald-500">${prod.price.toFixed(2)}</span>
-                                </div>
-                            ))}
-                            {productSearch && searchResults.length === 0 && (
+                            {isSearching ? (
+                                <p className="text-center text-gray-500 py-4">Buscando...</p>
+                            ) : displayedProducts.length > 0 ? (
+                                displayedProducts.map((prod: any) => (
+                                    <div key={prod.id} onClick={() => handleAddProductClick(prod)} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/50 border border-gray-200 dark:border-gray-700 transition-colors">
+                                        <span className="font-semibold text-gray-800 dark:text-gray-200">{prod.name}</span>
+                                        <span className="font-bold text-emerald-500">${(prod.price || 0).toFixed(2)}</span>
+                                    </div>
+                                ))
+                            ) : (
                                 <p className="text-center text-gray-500 dark:text-gray-400 py-4">No se encontraron productos.</p>
                             )}
                          </div>
