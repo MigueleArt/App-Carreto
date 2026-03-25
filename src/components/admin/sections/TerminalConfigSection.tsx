@@ -149,7 +149,7 @@ const TerminalConfigSection: React.FC<TerminalConfigSectionProps> = ({ showNotif
                                 {/* Header de estación — clic para expandir/colapsar */}
                                 <button
                                     onClick={() => setExpandedStation(isExpanded ? null : station.id)}
-                                    className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left"
+                                    className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left gap-3 sm:gap-0"
                                 >
                                     <div className="flex items-center gap-4">
                                         {/* Indicador de estado */}
@@ -178,7 +178,7 @@ const TerminalConfigSection: React.FC<TerminalConfigSectionProps> = ({ showNotif
 
                                 {/* Formulario expandible */}
                                 {isExpanded && (
-                                    <div className="border-t border-gray-100 dark:border-gray-700 p-5 space-y-5">
+                                    <div className="border-t border-gray-100 dark:border-gray-700 p-4 sm:p-5 space-y-4 sm:space-y-5">
                                         {/* Fila 1: IP y Puerto */}
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div className="md:col-span-2">

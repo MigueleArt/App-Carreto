@@ -50,18 +50,18 @@ const StationManagementSection = ({ showNotification }: any) => {
                     <PlusIcon className="w-5 h-5" /> Nueva Estación
                 </button>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
                 {isLoading ? <p className="p-10 text-center text-gray-500">Cargando...</p> : (
-                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700">
-                            <tr><th className="py-4 px-6">Nombre</th><th className="py-4 px-6">ID Interno</th><th className="py-4 px-6 text-right">Acciones</th></tr>
+                    <table className="w-full text-xs sm:text-sm text-left text-gray-500 dark:text-gray-400 min-w-[500px]">
+                        <thead className="text-[10px] sm:text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700">
+                            <tr><th className="py-3 px-4 sm:px-6">Nombre</th><th className="py-3 px-4 sm:px-6">ID Interno</th><th className="py-3 px-4 sm:px-6 text-right">Acciones</th></tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {stations.map(station => (
                                 <tr key={station.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="py-4 px-6 font-medium text-gray-900 dark:text-white">{station.name}</td>
-                                    <td className="py-4 px-6 text-xs font-mono text-gray-400">{station.id}</td>
-                                    <td className="py-4 px-6 text-right">
+                                    <td className="py-3 px-4 sm:px-6 font-medium text-gray-900 dark:text-white">{station.name}</td>
+                                    <td className="py-3 px-4 sm:px-6 text-xs font-mono text-gray-400">{station.id}</td>
+                                    <td className="py-3 px-4 sm:px-6 text-right">
                                         <button onClick={() => { setEditingStation(station); setIsStationModalOpen(true); }} className="text-blue-600 hover:underline">Editar</button>
                                     </td>
                                 </tr>
