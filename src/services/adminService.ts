@@ -1,6 +1,6 @@
 import { db, createAuthUser } from '../firebaseConfig';
 import {
-    doc, getDoc, setDoc, collection, getDocs, addDoc, updateDoc,
+    doc, getDoc, setDoc, collection, getDocs, addDoc, updateDoc, deleteDoc,
     query, where, orderBy, Timestamp, limit,
     startAfter, endBefore, limitToLast, DocumentSnapshot, getCountFromServer
 } from "firebase/firestore";
@@ -151,6 +151,15 @@ export const updateUser = async (userId: string, userData: Partial<UserData>): P
     }
 };
 
+export const deleteUser = async (userId: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, "users", userId));
+    } catch (error) {
+        console.error("Error deleteUser:", error);
+        throw new Error("Error al eliminar usuario.");
+    }
+};
+
 // ==========================================
 // 3. GESTIÓN DE ESTACIONES
 // ==========================================
@@ -180,6 +189,15 @@ export const updateStation = async (stationId: string, stationData: Partial<Stat
         await updateDoc(doc(db, "stations", stationId), stationData);
     } catch (error) {
         throw new Error("Error al actualizar estación.");
+    }
+};
+
+export const deleteStation = async (stationId: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, "stations", stationId));
+    } catch (error) {
+        console.error("Error deleteStation:", error);
+        throw new Error("Error al eliminar estación.");
     }
 };
 

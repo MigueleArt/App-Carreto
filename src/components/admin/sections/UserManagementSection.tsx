@@ -1,10 +1,10 @@
 // src/components/admin/sections/UserManagementSection.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { getUsers, addUser, updateUser, getStations } from '../../../services/adminService'; // Importamos getStations
+import { getUsers, addUser, updateUser, deleteUser, getStations } from '../../../services/adminService';
 import UserModal from '../modals/UserModal';
 import { ROLES } from '../../constants/roles'; 
 import { SessionData, UserData, StationData } from '../../../types'; // Importamos StationData
-import { PlusIcon, PencilIcon } from '../../Icons'; 
+import { PlusIcon, PencilIcon, TrashIcon } from '../../Icons'; 
 
 interface UserManagementSectionProps {
     session: SessionData;
@@ -18,6 +18,8 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
     const [isLoadingStations, setIsLoadingStations] = useState(true); // NUEVO: Estado de carga para estaciones
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<{isOpen: boolean, id: string | null, name: string}>({ isOpen: false, id: null, name: '' });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Función para obtener la lista de usuarios (sin cambios relevantes)
     const fetchUsers = useCallback(async () => {
@@ -80,6 +82,29 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
             fetchUsers();
         } catch (error: any) {
             showNotification(error.message, "error");
+        }
+    };
+
+    const handleDeleteClick = (user: UserData) => {
+        if (session.role === ROLES.ADMIN && user.role === ROLES.SUPER_ADMIN) {
+            showNotification("Acceso denegado: No puede eliminar al Super Admin.", "error");
+            return;
+        }
+        setDeleteConfirm({ isOpen: true, id: user.id || null, name: user.name || user.email });
+    };
+
+    const confirmDeleteUser = async () => {
+        if (!deleteConfirm.id) return;
+        setIsDeleting(true);
+        try {
+            await deleteUser(deleteConfirm.id);
+            showNotification("Usuario eliminado correctamente.", "success");
+            fetchUsers();
+        } catch (error: any) {
+            showNotification(error.message, "error");
+        } finally {
+            setIsDeleting(false);
+            setDeleteConfirm({ isOpen: false, id: null, name: '' });
         }
     };
 
@@ -154,7 +179,14 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
                                         {(session.role === ROLES.ADMIN && user.role === ROLES.SUPER_ADMIN) ? (
                                             <span className="text-xs text-gray-300 cursor-not-allowed">Protegido</span>
                                         ) : (
-                                            <button onClick={() => handleEdit(user)} className="text-blue-600 hover:text-blue-800 font-medium hover:underline text-xs sm:text-sm">Editar</button>
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleEdit(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors" title="Editar">
+                                                    <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                </button>
+                                                <button onClick={() => handleDeleteClick(user)} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Eliminar">
+                                                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                </button>
+                                            </div>
                                         )}
                                     </td>
                                 </tr>
@@ -163,6 +195,41 @@ const UserManagementSection: React.FC<UserManagementSectionProps> = ({ showNotif
                     </table>
                 )}
             </div>
+
+            {/* Modal Confirmación Eliminar Usuario */}
+            {deleteConfirm.isOpen && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl text-center">
+                        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <TrashIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">¿Eliminar usuario?</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mb-1">
+                            Estás a punto de eliminar a:
+                        </p>
+                        <p className="text-gray-800 dark:text-white font-semibold mb-4">{deleteConfirm.name}</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                            Esta acción eliminará el perfil del usuario del sistema. No se puede deshacer.
+                        </p>
+                        <div className="flex justify-center gap-3">
+                            <button 
+                                onClick={() => setDeleteConfirm({ isOpen: false, id: null, name: '' })} 
+                                disabled={isDeleting}
+                                className="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmDeleteUser} 
+                                disabled={isDeleting}
+                                className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all shadow-md hover:shadow-red-500/30 font-semibold disabled:opacity-50 disabled:shadow-none"
+                            >
+                                {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
