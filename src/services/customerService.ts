@@ -36,7 +36,7 @@ export const registerCustomer = async (name: string, phone: string): Promise<Cus
         throw new Error('Este número de teléfono ya está registrado.');
     }
     // NUEVO: Agregamos el campo xp: 0 para los clientes nuevos
-    const newCustomerData = { name, phone, points: 0, xp: 0, level: 1, createdAt: Timestamp.now() }; 
+    const newCustomerData = { name, phone, points: 0, xp: 0, level: 0, createdAt: Timestamp.now() }; 
     try { 
         const docRef = await addDoc(collection(db, "customers"), newCustomerData);
         return { id: docRef.id, ...newCustomerData } as Customer;

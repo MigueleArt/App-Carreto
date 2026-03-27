@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^6.0.0",
+    "@capacitor/android": "^6.2.1",
     "@capacitor/core": "^6.2.1",
     "@google/genai": "^1.12.0",
     "@yudiel/react-qr-scanner": "^2.5.1",
@@ -19,6 +19,7 @@
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^6.2.1",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

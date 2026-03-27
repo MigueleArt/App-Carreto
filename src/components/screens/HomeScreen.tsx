@@ -117,7 +117,7 @@ export default function HomeScreen({
              showNotification('✅ Check-in registrado (+1 visita)', 'success');
           }
           
-          // Pasamos a caja de inmediato (sin retrasos)
+          // Pasamos a caja de inmediato
           await onSearch(phoneToSearch);
 
         } catch (err) {
@@ -160,13 +160,17 @@ export default function HomeScreen({
         <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center touch-none">
           <button 
             onClick={() => setIsScannerOpen(false)}
-            className="absolute top-8 right-6 z-50 text-white p-4 bg-gray-900/80 backdrop-blur-md rounded-full hover:bg-gray-800 active:scale-90 transition-all border border-gray-700"
+            className="absolute right-6 z-50 text-white p-4 bg-gray-900/80 backdrop-blur-md rounded-full hover:bg-gray-800 active:scale-90 transition-all border border-gray-700"
+            style={{ top: 'max(env(safe-area-inset-top), 2rem)' }} 
           >
             <XMarkIcon className="w-8 h-8" />
           </button>
           
           <div className="w-full h-full sm:h-auto sm:max-w-md bg-black relative flex flex-col justify-center">
-            <div className="absolute top-24 left-0 w-full text-center z-20 px-6">
+            <div 
+              className="absolute left-0 w-full text-center z-20 px-6"
+              style={{ top: 'max(env(safe-area-inset-top), 6rem)' }} 
+            >
               <h2 className="text-white text-2xl font-black uppercase tracking-widest drop-shadow-lg">
                 Escanear Pase
               </h2>
@@ -184,11 +188,14 @@ export default function HomeScreen({
         </div>
       )}
 
+      {/* --- DISEÑO ORIGINAL RESTAURADO --- */}
       <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-8 text-center animate-fade-in relative z-10">
         <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-200">Bienvenido, Operador</h2>
         <p className="text-gray-500 dark:text-gray-400 mt-2">Ingrese el número de teléfono del cliente para comenzar.</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          
+          {/* GRUPO DE INPUT Y BOTÓN DE CÁMARA (FIX PARA MÓVIL) */}
           <div className="flex gap-2">
             <label htmlFor="phone" className="sr-only">Número de teléfono</label>
             <input
@@ -197,7 +204,8 @@ export default function HomeScreen({
               type="tel"
               autoComplete="tel"
               required
-              className={`flex-grow text-center text-xl sm:text-2xl p-4 bg-gray-100 dark:bg-gray-700 border-2 rounded-lg transition ${error ? 'border-red-500 focus:ring-red-500' : 'border-transparent focus:ring-emerald-500 focus:border-emerald-500'}`}
+              /* min-w-0 permite que el input se reduzca sin empujar al botón */
+              className={`min-w-0 flex-grow text-center text-xl sm:text-2xl p-4 bg-gray-100 dark:bg-gray-700 border-2 rounded-lg transition ${error ? 'border-red-500 focus:ring-red-500' : 'border-transparent focus:ring-emerald-500 focus:border-emerald-500'}`}
               placeholder="WhatsApp (10 dígitos)"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
@@ -207,7 +215,8 @@ export default function HomeScreen({
               type="button"
               onClick={() => setIsScannerOpen(true)}
               disabled={isLoading}
-              className="bg-gray-900 text-white p-4 rounded-lg flex items-center justify-center hover:bg-gray-800 transition-colors disabled:opacity-50"
+              /* shrink-0 aspect-square asegura que siempre sea cuadrado y nunca se apachurre */
+              className="shrink-0 aspect-square bg-gray-900 text-white p-4 rounded-lg flex items-center justify-center hover:bg-gray-800 transition-colors disabled:opacity-50"
               title="Escanear QR"
             >
               <CameraIcon className="w-8 h-8" />
