@@ -18,6 +18,7 @@ interface HomeScreenProps {
   session: SessionData | null;
   onGoToLogin: () => void;
   onGoToAdmin: () => void;
+  showNotification: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
 // --- Iconos ---
@@ -54,7 +55,8 @@ export default function HomeScreen({
   onRegister, 
   session, 
   onGoToLogin, 
-  onGoToAdmin 
+  onGoToAdmin,
+  showNotification
 }: HomeScreenProps): React.ReactNode {
   
   const [phone, setPhone] = useState('');
@@ -62,10 +64,7 @@ export default function HomeScreen({
   const [error, setError] = useState<string | null>(null); 
   const [isScannerOpen, setIsScannerOpen] = useState(false); 
 
-  // Estado para la notificación local de Check-in
-  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-
-  // --- Lógica silenciosa de Check-in Diario ---
+  // --- Lógica silenciosa de Check-in (POR VISITA SIN LÍMITE DIARIO) ---
   const processCheckIn = async (phoneToSearch: string): Promise<boolean> => {
     try {
       const q = query(collection(db, "customers"), where("phone", "==", phoneToSearch));
@@ -76,30 +75,21 @@ export default function HomeScreen({
         const data = customerDoc.data();
         let currentCheckIns = data.checkIns || data.visits || 0;
         
-        const today = new Date();
-        const todayString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+        // Sumamos 1 incondicionalmente cada vez que se busca al cliente o se escanea su QR
+        currentCheckIns += 1;
         
-        let lastCheckInString = "";
-        if (data.lastCheckInDate) {
-          const dateObj = data.lastCheckInDate.toDate ? data.lastCheckInDate.toDate() : new Date(data.lastCheckInDate);
-          lastCheckInString = `${dateObj.getFullYear()}-${dateObj.getMonth() + 1}-${dateObj.getDate()}`;
-        }
-
-        // Si no han hecho checkin hoy, sumamos 1
-        if (todayString !== lastCheckInString) {
-          currentCheckIns += 1;
-          await updateDoc(doc(db, "customers", customerDoc.id), {
-            checkIns: currentCheckIns,
-            visits: currentCheckIns, // Por compatibilidad
-            lastCheckInDate: Timestamp.now()
-          });
-          return true; // Check-in exitoso
-        }
+        await updateDoc(doc(db, "customers", customerDoc.id), {
+          checkIns: currentCheckIns,
+          visits: currentCheckIns, // Por compatibilidad
+          lastCheckInDate: Timestamp.now()
+        });
+        
+        return true; // Check-in exitoso siempre
       }
     } catch (e) {
-      console.error("Error validando check-in:", e);
+      console.error("Error registrando check-in:", e);
     }
-    return false; // Ya hizo checkin o hubo un error
+    return false; // Hubo un error o no se encontró el cliente
   };
 
   // --- Manejo del Escáner QR ---
@@ -120,25 +110,20 @@ export default function HomeScreen({
 
           setPhone(phoneToSearch); 
           
-          // Procesamos Check-in y mostramos notificación
+          // Procesamos Check-in de forma silenciosa
           const didCheckIn = await processCheckIn(phoneToSearch);
           
-          if (didCheckIn) {
-             setToast({ message: '✅ Check-in registrado', type: 'success' });
-             // Damos un pequeño retraso para que se lea la notificación antes de cambiar de pantalla
-             setTimeout(async () => {
-                 await onSearch(phoneToSearch);
-                 setIsLoading(false);
-                 setToast(null);
-             }, 1500);
-          } else {
-             await onSearch(phoneToSearch);
-             setIsLoading(false);
+          if (didCheckIn && showNotification) {
+             showNotification('✅ Check-in registrado (+1 visita)', 'success');
           }
+          
+          // Pasamos a caja de inmediato (sin retrasos)
+          await onSearch(phoneToSearch);
 
         } catch (err) {
           console.error(err);
           setError("Error al procesar el código QR.");
+        } finally {
           setIsLoading(false);
         }
       }
@@ -156,35 +141,20 @@ export default function HomeScreen({
     
     setIsLoading(true);
     
-    // Procesamos Check-in y mostramos notificación
+    // Procesamos Check-in de forma silenciosa
     const didCheckIn = await processCheckIn(phone.trim());
     
-    if (didCheckIn) {
-        setToast({ message: '✅ Check-in registrado', type: 'success' });
-        setTimeout(async () => {
-            await onSearch(phone.trim());
-            setIsLoading(false);
-            setToast(null);
-        }, 1500);
-    } else {
-        await onSearch(phone.trim());
-        setIsLoading(false);
+    if (didCheckIn && showNotification) {
+        showNotification('✅ Check-in registrado (+1 visita)', 'success');
     }
+    
+    // Pasamos a caja de inmediato
+    await onSearch(phone.trim());
+    setIsLoading(false);
   };
 
   return (
     <>
-      {/* --- NOTIFICACIÓN TOAST LOCAL --- */}
-      {toast && (
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] animate-fade-in-up w-[90%] max-w-sm transition-all">
-              <div className={`px-4 py-3 rounded-xl shadow-lg flex items-center justify-center gap-3 backdrop-blur-md border ${
-                  toast.type === 'success' ? 'bg-emerald-500/90 text-white border-emerald-400' : 'bg-red-500/90 text-white border-red-400'
-              }`}>
-                  <p className="text-sm font-bold leading-tight">{toast.message}</p>
-              </div>
-          </div>
-      )}
-
       {/* --- MODAL DEL ESCÁNER DE CÁMARA --- */}
       {isScannerOpen && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center touch-none">
