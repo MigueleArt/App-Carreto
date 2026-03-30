@@ -42,6 +42,7 @@ const TerminalConfigSection: React.FC<TerminalConfigSectionProps> = ({ showNotif
                     ip: '',
                     port: '1818',
                     affiliation: '',
+                    terminalId: '',
                     user: '',
                     password: '',
                     mode: 'AUT',
@@ -104,6 +105,7 @@ const TerminalConfigSection: React.FC<TerminalConfigSectionProps> = ({ showNotif
         return current?.ip !== saved.ip || 
                current?.port !== saved.port || 
                current?.affiliation !== saved.affiliation ||
+               current?.terminalId !== saved.terminalId ||
                current?.user !== saved.user ||
                current?.password !== saved.password ||
                current?.mode !== saved.mode ||
@@ -207,8 +209,8 @@ const TerminalConfigSection: React.FC<TerminalConfigSectionProps> = ({ showNotif
                                             </div>
                                         </div>
 
-                                        {/* Fila 2: Afiliación y Modo */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Fila 2: Afiliación, Terminal ID y Modo */}
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div>
                                                 <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
                                                     No. de Afiliación
@@ -223,6 +225,18 @@ const TerminalConfigSection: React.FC<TerminalConfigSectionProps> = ({ showNotif
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+                                                    ID Terminal (banco)
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ej: 327782962"
+                                                    value={stationForm.terminalId || ''}
+                                                    onChange={(e) => handleInputChange(station.id, 'terminalId', e.target.value)}
+                                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
                                                     Modo
                                                 </label>
                                                 <select
@@ -231,6 +245,7 @@ const TerminalConfigSection: React.FC<TerminalConfigSectionProps> = ({ showNotif
                                                     className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                                                 >
                                                     <option value="AUT">Automático (AUT)</option>
+                                                    <option value="PRU">Pruebas (PRU)</option>
                                                     <option value="RND">Random (RND)</option>
                                                 </select>
                                             </div>

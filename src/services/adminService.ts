@@ -491,6 +491,7 @@ export interface TerminalConfig {
     ip: string;
     port: string;
     affiliation: string;
+    terminalId?: string;
     user: string;
     password: string;
     mode: string;

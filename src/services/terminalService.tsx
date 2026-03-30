@@ -1,9 +1,11 @@
 /**
  * terminalService.tsx
- * Comunicación con PAX A920 Pro (Banorte)
+ * Comunicación con PAX A920 Pro (Banorte) — Protocolo Interredes
  *
  * La configuración de cada terminal se carga dinámicamente desde Firestore
  * (colección "terminalConfig"), donde cada documento tiene el ID de la estación.
+ *
+ * Referencia: Anexo III y IV de Banorte Payworks.
  */
 
 import { getTerminalConfigByStation, TerminalConfig } from './adminService';
@@ -14,20 +16,23 @@ export interface TerminalResponse {
     message: string;
     authCode: string;
     reference: string;
-    /** true cuando la terminal respondió con HTTP no estándar pero el comando sí se envió */
+    /** true cuando la terminal probablemente procesó pero la respuesta se cortó */
     isBlindSuccess?: boolean;
 }
 
 // Timeout para la transacción (65 segundos: tiempo para que el cliente pase la tarjeta)
 const TRANSACTION_TIMEOUT = 65000;
 
+// Umbral para determinar si la terminal alcanzó a procesar algo.
+// Si el error tarda más de 20s, la terminal probablemente SÍ recibió el comando
+// y el corte fue en la respuesta. Si falla en <5s, nunca llegó.
+const BLIND_SUCCESS_THRESHOLD_MS = 20000;
+const CONNECTION_FAILURE_THRESHOLD_MS = 5000;
+
 // --- Comunicación con la Terminal ---
 
 /**
  * Envía un comando a la terminal PAX via HTTP POST.
- * Maneja respuestas no estándar (ERR_INVALID_HTTP_RESPONSE) con un
- * "blind success" — asumiendo que el comando se envió correctamente
- * pero el protocolo de respuesta no es parseable por el browser.
  *
  * En el APK nativo (Capacitor), CapacitorHttp intercepta el fetch()
  * automáticamente, eliminando las restricciones de CORS y mixed content.
@@ -36,7 +41,6 @@ async function sendCommand(config: TerminalConfig, payload: any): Promise<Termin
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TRANSACTION_TIMEOUT);
 
-    // Registrar el momento de inicio para distinguir errores de conexión vs. protocolo
     const startTime = Date.now();
 
     try {
@@ -53,7 +57,7 @@ async function sendCommand(config: TerminalConfig, payload: any): Promise<Termin
         const text = await response.text();
         clearTimeout(timeoutId);
 
-        // Intentar extraer JSON de la respuesta
+        // Intentar extraer JSON de la respuesta (robusto ante cabeceras mal formadas de PAX)
         const jsonStart = text.indexOf("{");
         const jsonEnd = text.lastIndexOf("}");
 
@@ -94,29 +98,37 @@ async function sendCommand(config: TerminalConfig, payload: any): Promise<Termin
             };
         }
 
-        // Distinguir entre terminal inalcanzable vs. respuesta no estándar
-        const CONNECTION_THRESHOLD_MS = 10000; // 10 segundos
+        console.error(`[Terminal] Error de conexión (${elapsedMs}ms):`, error.message);
 
-        if (elapsedMs >= CONNECTION_THRESHOLD_MS) {
-            console.error(`[Terminal] Terminal inalcanzable (${(elapsedMs / 1000).toFixed(1)}s):`, error.message);
+        // Fallo rápido (<5s): la terminal NUNCA recibió el comando
+        if (elapsedMs < CONNECTION_FAILURE_THRESHOLD_MS) {
             return {
                 success: false,
-                message: "No se pudo conectar con la terminal. Verifique que esté encendida y en la misma red o intente hacer el cobro manual.",
+                message: `Error de comunicación con la terminal: ${error.message || 'conexión rechazada'}. Verifique la IP, el puerto y que la terminal esté en modo espera.`,
                 authCode: "",
                 reference: "",
             };
         }
 
-        // Falló rápido → la conexión sí se hizo, pero la respuesta no es HTTP válido.
-        console.warn(`[Terminal] Protocolo no estándar detectado (${elapsedMs}ms):`, error.message);
-        console.warn("[Terminal] El comando fue enviado. Verificar voucher de la terminal.");
+        // Fallo lento (>20s): la terminal probablemente SÍ procesó pero la respuesta se cortó
+        // Marcamos como blind success para que el despachador verifique el voucher físico
+        if (elapsedMs >= BLIND_SUCCESS_THRESHOLD_MS) {
+            console.warn(`[Terminal] Posible éxito ciego (${elapsedMs}ms). Verificar voucher físico.`);
+            return {
+                success: true,
+                message: "Pago posiblemente procesado. VERIFIQUE el voucher impreso en la terminal antes de continuar.",
+                authCode: "VER_TICKET",
+                reference: "MANUAL",
+                isBlindSuccess: true,
+            };
+        }
 
+        // Rango intermedio (5-20s): no hay certeza. Marcamos como fallo para no cobrar doble.
         return {
-            success: true,
-            message: "Pago enviado a la terminal. Verifique el voucher impreso.",
-            authCode: "VER_TICKET",
-            reference: "MANUAL",
-            isBlindSuccess: true,
+            success: false,
+            message: "No se pudo conectar con la terminal. Verifique que esté encendida y en la misma red.",
+            authCode: "",
+            reference: "",
         };
     }
 }
@@ -126,7 +138,7 @@ async function sendCommand(config: TerminalConfig, payload: any): Promise<Termin
 /**
  * Procesa un pago con tarjeta a través de la terminal Banorte.
  * Carga la configuración de la terminal desde Firestore según la estación.
- * 
+ *
  * @param amount - Monto a cobrar
  * @param folio - Número de control / folio de la venta
  * @param stationId - ID de la estación para cargar su configuración de terminal
@@ -166,7 +178,7 @@ export const processTerminalPayment = async (
         };
     }
 
-    // 2. Enviar comando de venta
+    // 2. Enviar comando de venta (Anexo III)
     return sendCommand(config, {
         CMD_TRANS: "VENTA",
         ID_AFILIACION: config.affiliation,
@@ -175,7 +187,48 @@ export const processTerminalPayment = async (
         MODO: config.mode,
         MONTO: amount.toFixed(2),
         NUMERO_CONTROL: folio,
-        ID_TERMINAL: "A920PRO",
+        ID_TERMINAL: config.terminalId || "A920PRO",
+    });
+};
+
+/**
+ * Sincroniza las llaves de cifrado con el host del banco (Anexo III - OBTENER_LLAVE).
+ * Según Banorte, es obligatorio ejecutar esto:
+ * - Al menos una vez al día
+ * - Cuando la terminal se reinicia
+ * - Antes de la primera transacción del día
+ *
+ * @param stationId - ID de la estación
+ */
+export const obtenerLlaveTerminal = async (stationId: string): Promise<TerminalResponse> => {
+    const config = await getTerminalConfigByStation(stationId);
+
+    if (!config) {
+        return {
+            success: false,
+            message: "Esta estación no tiene una terminal configurada.",
+            authCode: "",
+            reference: "",
+        };
+    }
+
+    if (!config.ip || !config.ip.trim()) {
+        return {
+            success: false,
+            message: "La terminal no tiene una dirección IP configurada.",
+            authCode: "",
+            reference: "",
+        };
+    }
+
+    console.log(`[Terminal] Solicitando OBTENER_LLAVE para estación ${stationId}...`);
+
+    return sendCommand(config, {
+        CMD_TRANS: "OBTENER_LLAVE",
+        ID_AFILIACION: config.affiliation,
+        USUARIO: config.user,
+        CLAVE_USR: config.password,
+        ID_TERMINAL: config.terminalId || "A920PRO",
     });
 };
 
